@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <!-- viewport-fit=cover lets the app draw under the iPhone notch; safe-area insets are handled in CSS -->
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>Kartoteka</title>
+    <meta name="description" content="Leitner spaced-repetition flashcards, synced across your devices." />
+
+    <!-- Browser UI colour (Android address bar, iOS status bar in Safari) -->
+    <meta name="theme-color" content="#EEF0F4" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#0E1117" media="(prefers-color-scheme: dark)" />
+
+    <!-- iOS "Add to Home Screen" support -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="Kartoteka" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon-180x180.png" />
+
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="icon" href="/pwa-192x192.png" type="image/png" sizes="192x192" />
+
+    <!-- Paint the right background before JS loads (no white flash in dark mode) -->
+    <style>
+      html, body { background: #EEF0F4; }
+      @media (prefers-color-scheme: dark) { html:not([data-theme="light"]), html:not([data-theme="light"]) body { background: #0E1117; } }
+      html[data-theme="dark"], html[data-theme="dark"] body { background: #0E1117; }
+    </style>
+  </head>
+  <body>
+    <noscript>Kartoteka needs JavaScript to run.</noscript>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>

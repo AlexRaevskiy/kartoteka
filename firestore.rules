@@ -1,0 +1,35 @@
+rules_version = '2';
+
+// Kartoteka security rules
+// ------------------------------------------------------------
+// Every user owns exactly one branch of the database:
+//   users/{uid}                  → settings + daily review log
+//   users/{uid}/decks/{deckId}   → one deck, with its cards array (terms + Leitner progress)
+// Nobody can read or write another user's data.
+// Paste this into Firebase Console → Firestore Database → Rules → Publish.
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isOwner(uid) {
+      return request.auth != null && request.auth.uid == uid;
+    }
+
+    match /users/{uid} {
+      allow read, write: if isOwner(uid);
+
+      match /decks/{deckId} {
+        allow read, delete: if isOwner(uid);
+
+        // Light schema validation keeps a buggy client from corrupting data.
+        // 2000 cards per deck keeps each document safely under Firestore's 1 MB limit.
+        allow create, update: if isOwner(uid)
+          && request.resource.data.name is string
+          && request.resource.data.name.size() > 0
+          && request.resource.data.name.size() <= 120
+          && request.resource.data.cards is list
+          && request.resource.data.cards.size() <= 2000;
+      }
+    }
+  }
+}
