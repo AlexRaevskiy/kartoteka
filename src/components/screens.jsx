@@ -8,6 +8,9 @@ import { Spinner } from "./ui.jsx";
 import { missingConfig } from "../firebase.js";
 import SEO from "./SEO.jsx";
 
+// Sign in with Apple needs an Apple Developer account; turn the button on with VITE_APPLE_SIGN_IN=true.
+const APPLE_SIGN_IN = import.meta.env.VITE_APPLE_SIGN_IN === "true";
+
 function Logo({ size = 48 }) {
   return (
     <div className="bg-primary text-on-primary rounded-2xl flex items-center justify-center shrink-0" style={{ width: size, height: size }} aria-hidden="true">
@@ -263,9 +266,11 @@ export function AuthScreen({ auth }) {
             <button type="button" className="fc-btn fc-btn-outlined fc-btn-lg w-full text-on-surface" onClick={start("google", auth.signInWithGoogle)} disabled={auth.busy}>
               {pending === "google" ? <Spinner size={18} /> : <GoogleMark />} {t("auth.google")}
             </button>
-            <button type="button" className="fc-btn fc-btn-outlined fc-btn-lg w-full text-on-surface" onClick={start("apple", auth.signInWithApple)} disabled={auth.busy}>
-              {pending === "apple" ? <Spinner size={18} /> : <AppleMark />} {t("auth.apple")}
-            </button>
+            {APPLE_SIGN_IN ? (
+              <button type="button" className="fc-btn fc-btn-outlined fc-btn-lg w-full text-on-surface" onClick={start("apple", auth.signInWithApple)} disabled={auth.busy}>
+                {pending === "apple" ? <Spinner size={18} /> : <AppleMark />} {t("auth.apple")}
+              </button>
+            ) : null}
             <button
               type="button"
               className="fc-btn fc-btn-outlined fc-btn-lg w-full text-on-surface"
