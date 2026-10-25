@@ -17,6 +17,7 @@ import { useLibrary } from "../data/LibraryProvider.jsx";
 import { useDeckResource, useDeckSet, useFolderResource } from "../data/useRemote.js";
 import { useToast } from "../components/providers.jsx";
 import { EmptyPanel, Menu, ProgressBar, Spinner } from "../components/ui.jsx";
+import SEO from "../components/SEO.jsx";
 import FlashcardMode from "../components/study/FlashcardMode.jsx";
 import QuizMode from "../components/study/QuizMode.jsx";
 import WriteMode from "../components/study/WriteMode.jsx";
@@ -203,6 +204,7 @@ function Session({ items, source, backPath, opts }) {
 
   return (
     <div className="min-h-screen flex flex-col bg-surface">
+      <SEO title={`${source.title} · учёба | Kartoteka`} noindex />
       {/* Minimal top bar: exit · title/round · menu */}
       <header className="fc-topbar sticky top-0 z-30">
         <div className="fc-gutter">

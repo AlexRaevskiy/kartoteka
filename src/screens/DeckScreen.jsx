@@ -44,6 +44,7 @@ import { speechLang } from "../lib/languages.js";
 import { shareLink } from "../lib/share.js";
 import { cx } from "../lib/utils.js";
 import { MODES } from "./StudyScreen.jsx";
+import SEO, { DEFAULT_DESCRIPTION } from "../components/SEO.jsx";
 
 export default function DeckScreen() {
   const { id } = useParams();
@@ -196,6 +197,11 @@ function DeckView({ deck }) {
 
   return (
     <div className="min-h-screen pb-28">
+      <SEO
+        title={`${deck.title} | Kartoteka`}
+        description={deck.description || `Набор флеш-карточек «${deck.title}»: ${deck.cards.length} ${plural(deck.cards.length, ["карточка", "карточки", "карточек"])}. ${DEFAULT_DESCRIPTION}`}
+        type="article"
+      />
       <TopBar
         back
         title=""

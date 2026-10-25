@@ -8,6 +8,7 @@ import { useLibrary } from "../data/LibraryProvider.jsx";
 import { useDialogs, useToast } from "../components/providers.jsx";
 import { useInstallPrompt } from "../hooks/useInstallPrompt.js";
 import StreakWidget from "../components/StreakWidget.jsx";
+import SEO from "../components/SEO.jsx";
 import DeckListItem from "../components/DeckListItem.jsx";
 import { InstallBanner } from "../components/PwaPrompts.jsx";
 import { EmptyPanel, Spinner } from "../components/ui.jsx";
@@ -97,6 +98,7 @@ export default function HomeScreen() {
 
   return (
     <div className="fc-gutter">
+      <SEO />
       <div className="mx-auto max-w-3xl">
         <header className="flex items-center gap-3 pt-4 pb-2" style={{ paddingTop: "calc(16px + env(safe-area-inset-top, 0px))" }}>
           <div className="w-10 h-10 rounded-xl bg-primary text-on-primary flex items-center justify-center" aria-hidden="true">

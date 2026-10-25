@@ -4,8 +4,18 @@
     <meta charset="UTF-8" />
     <!-- viewport-fit=cover lets the app draw under the iPhone notch; safe-area insets are handled in CSS -->
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <title>Kartoteka</title>
-    <meta name="description" content="Карточки для изучения слов по системе Лейтнера. Синхронизация между устройствами." />
+    <title>Kartoteka - Умные флеш-карточки по методу Лейтнера</title>
+    <!-- Fallback SEO for crawlers without JavaScript. Removed by src/components/SEO.jsx once the app runs, which renders per-screen tags instead. -->
+    <meta data-seo-fallback name="description" content="Учите слова с флеш-карточками по методу Лейтнера: интервальное повторение показывает каждую карточку именно тогда, когда вы начинаете её забывать. Работает офлайн и синхронизируется между устройствами." />
+    <meta data-seo-fallback property="og:site_name" content="Kartoteka" />
+    <meta data-seo-fallback property="og:title" content="Kartoteka - Умные флеш-карточки по методу Лейтнера" />
+    <meta data-seo-fallback property="og:description" content="Учите слова с флеш-карточками по методу Лейтнера: интервальное повторение, офлайн-режим и синхронизация между устройствами." />
+    <meta data-seo-fallback property="og:type" content="website" />
+    <meta property="og:locale" content="ru_RU" />
+    <meta property="og:image" content="/pwa-512x512.png" />
+    <meta data-seo-fallback name="twitter:card" content="summary" />
+    <meta data-seo-fallback name="twitter:title" content="Kartoteka - Умные флеш-карточки по методу Лейтнера" />
+    <meta data-seo-fallback name="twitter:description" content="Учите слова с флеш-карточками по методу Лейтнера: интервальное повторение, офлайн-режим и синхронизация между устройствами." />
 
     <!-- Browser UI colour (Android address bar, iOS status bar in Safari) -->
     <meta name="theme-color" content="#FBF8FF" media="(prefers-color-scheme: light)" />
@@ -29,7 +39,10 @@
     </style>
   </head>
   <body>
-    <noscript>Для работы Kartoteka нужен JavaScript.</noscript>
+    <noscript>
+      <h1>Kartoteka — умные флеш-карточки по методу Лейтнера</h1>
+      <p>Учите слова с интервальным повторением: каждая карточка возвращается тогда, когда вы начинаете её забывать. Для работы приложения нужен JavaScript.</p>
+    </noscript>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
   </body>

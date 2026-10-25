@@ -1,0 +1,7 @@
+# Kartoteka — only public pages (home, deck and folder pages) should be indexed.
+User-agent: *
+Allow: /
+Disallow: /profile
+Disallow: /create
+Disallow: /*/edit
+Disallow: /*/study

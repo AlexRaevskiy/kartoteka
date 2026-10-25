@@ -10,6 +10,7 @@ import { useAuthContext } from "../data/useAuth.js";
 import { mergeGuestInto } from "../data/merge.js";
 import { useDialogs, useToast } from "../components/providers.jsx";
 import { Switch, TopBar } from "../components/ui.jsx";
+import SEO from "../components/SEO.jsx";
 import { useInstallPrompt } from "../hooks/useInstallPrompt.js";
 import { GOAL_TYPES, displayedStreak, localDateKey, normalizeGoal } from "../lib/goals.js";
 import { LANGUAGES, goalAmount, goalText, setLanguage } from "../i18n/index.js";
@@ -135,6 +136,7 @@ export default function ProfileScreen() {
 
   return (
     <div className="min-h-screen">
+      <SEO title={`${t("profile.title")} | Kartoteka`} noindex />
       <TopBar title={t("profile.title")} />
       <main className="fc-gutter pb-8">
         <div className="mx-auto max-w-2xl flex flex-col gap-6">

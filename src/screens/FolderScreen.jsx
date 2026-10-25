@@ -13,6 +13,7 @@ import { useLibrary } from "../data/LibraryProvider.jsx";
 import { useDeckSet, useFolderResource } from "../data/useRemote.js";
 import { useDialogs, useToast } from "../components/providers.jsx";
 import { EmptyPanel, Menu, Sheet, TopBar } from "../components/ui.jsx";
+import SEO from "../components/SEO.jsx";
 import DeckListItem, { UnavailableDeckItem } from "../components/DeckListItem.jsx";
 import { ShareSheet } from "../components/sheets.jsx";
 import { useNow } from "../hooks/useNow.js";
@@ -102,6 +103,7 @@ function FolderView({ folder }) {
 
   return (
     <div className="min-h-screen" style={{ paddingBottom: "calc(120px + env(safe-area-inset-bottom, 0px))" }}>
+      <SEO title={`${folder.name} | Kartoteka`} description={`Папка «${folder.name}» в Kartoteka: ${folder.deckIds.length} ${plural(folder.deckIds.length, ["набор", "набора", "наборов"])} флеш-карточек для изучения по методу Лейтнера.`} />
       <TopBar back title={folder.name} actions={<Menu items={menu} label="Действия с папкой" />} />
       <main className="fc-gutter">
         <div className="mx-auto max-w-3xl flex flex-col gap-4">

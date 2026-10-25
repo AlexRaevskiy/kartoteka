@@ -26,6 +26,7 @@ import { IOSInstallHint, UpdatePrompt } from "./components/PwaPrompts.jsx";
 import { AuthScreen, LibraryError, SetupScreen, Splash } from "./components/screens.jsx";
 import BottomNav from "./components/BottomNav.jsx";
 import { onForegroundPush } from "./lib/push.js";
+import { usePageTracking } from "./lib/analytics.js";
 import { warmUpVoices } from "./lib/speech.js";
 
 import HomeScreen from "./screens/HomeScreen.jsx";
@@ -37,6 +38,7 @@ import StudyScreen from "./screens/StudyScreen.jsx";
 
 export default function App() {
   const auth = useAuth();
+  usePageTracking(); // GA4 page views for every screen (no-op without VITE_GA_MEASUREMENT_ID)
   return (
     <AuthContext.Provider value={auth}>
       <ToastProvider>

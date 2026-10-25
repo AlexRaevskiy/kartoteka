@@ -16,6 +16,7 @@ import { useDeckResource } from "../data/useRemote.js";
 import * as store from "../data/store.js";
 import { useDialogs, useToast } from "../components/providers.jsx";
 import { EmptyPanel, Sheet, Spinner } from "../components/ui.jsx";
+import SEO from "../components/SEO.jsx";
 import { EDIT_OPTIONS, MAX_CARDS_PER_DECK, VISIBILITY_OPTIONS, newCard } from "../lib/model.js";
 import { LANGUAGES, languageLabel } from "../lib/languages.js";
 import { parseImport } from "../lib/parser.js";
@@ -159,6 +160,7 @@ function Editor({ initial, asEditor = false }) {
 
   return (
     <div className="min-h-screen pb-28">
+      <SEO title="Редактор набора | Kartoteka" noindex />
       <header className="fc-topbar sticky top-0 z-30 is-scrolled">
         <div className="fc-gutter">
           <div className="mx-auto max-w-3xl flex items-center gap-1 h-16">
