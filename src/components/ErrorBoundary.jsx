@@ -20,13 +20,13 @@ export default class ErrorBoundary extends React.Component {
     return (
       <div className="fc-gutter min-h-screen flex items-center justify-center py-10">
         <div className="fc-panel p-6 max-w-md w-full text-center">
-          <h1 className="fc-display text-xl font-bold">Something broke</h1>
+          <h1 className="text-title-lg">Что-то сломалось</h1>
           <p className="fc-muted mt-2 text-sm">
-            Your decks are safe in the cloud. Reload the app to continue.
+            Ваши наборы в безопасности в облаке. Перезагрузите приложение.
           </p>
-          <pre className="fc-surface2 rounded-lg p-3 mt-4 text-xs text-left overflow-auto fc-mono">{String(this.state.error?.message || this.state.error)}</pre>
+          <pre className="bg-surface-container-high rounded-lg p-3 mt-4 text-xs text-left overflow-auto fc-mono">{String(this.state.error?.message || this.state.error)}</pre>
           <button type="button" className="fc-btn fc-btn-primary px-4 py-2.5 mt-4" onClick={() => window.location.reload()}>
-            Reload
+            Перезагрузить
           </button>
         </div>
       </div>

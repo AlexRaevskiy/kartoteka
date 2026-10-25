@@ -1,16 +1,17 @@
 import React from "react";
-import { BOX_INTERVAL_DAYS, nextBox } from "../../lib/leitner.js";
+import { BOX_INTERVAL_DAYS, nextBox, plural } from "../../lib/leitner.js";
 
-/** One line under each card that teaches the Leitner rules in context. */
-export default function RatingHint({ card, tracked, showAlmost = false }) {
-  if (!tracked) return <span>Practice round: your boxes won't change.</span>;
+/** One line under each card that explains what the answer does to the Leitner box. */
+export default function RatingHint({ card, tracked, goal = "memorize", showAlmost = false }) {
+  if (!tracked) return <span>Повтор ошибок: коробки Лейтнера не меняются.</span>;
+  if (goal === "cram") return <span>Зубрёжка: ошибки отправят карточку в коробку 1, верные ответы не сдвигают расписание.</span>;
   const up = nextBox(card.box, "know");
-  const stay = nextBox(card.box, "almost");
+  const days = BOX_INTERVAL_DAYS[up];
   return (
     <span>
-      Know → Box {up}
-      {up === 5 ? " (mastered)" : `, next review in ${BOX_INTERVAL_DAYS[up]} days`}.
-      {showAlmost ? ` Almost → stays in Box ${stay}.` : ""} Still learning → Box 1, tomorrow.
+      Знаю → коробка {up}
+      {up === 5 ? " (выучено)" : `, повтор через ${days} ${plural(days, ["день", "дня", "дней"])}`}.
+      {showAlmost ? ` Почти → остаётся в коробке ${nextBox(card.box, "almost")}.` : ""} Ещё учу → коробка 1, завтра.
     </span>
   );
 }

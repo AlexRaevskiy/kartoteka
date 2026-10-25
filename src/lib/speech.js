@@ -16,7 +16,7 @@ export function detectLang(text = "") {
   return "en-US";
 }
 
-const LANG_NAMES = { "ka-GE": "Georgian", "ru-RU": "Russian", "el-GR": "Greek", "ja-JP": "Japanese", "zh-CN": "Chinese", "ar-SA": "Arabic" };
+const LANG_NAMES = { "ka-GE": "грузинского", "ru-RU": "русского", "el-GR": "греческого", "ja-JP": "японского", "zh-CN": "китайского", "ar-SA": "арабского", "hy-AM": "армянского", "az-AZ": "азербайджанского", "he-IL": "иврита", "ko-KR": "корейского", "uk-UA": "украинского" };
 
 export const speechSupported = () => typeof window !== "undefined" && "speechSynthesis" in window;
 
@@ -25,13 +25,16 @@ export function warmUpVoices() {
   if (speechSupported()) window.speechSynthesis.getVoices();
 }
 
-/** Speak `text`. Returns { ok, message? } so the UI can show a hint when no voice exists. */
-export function speak(text) {
-  if (!speechSupported()) return { ok: false, message: "Speech isn't supported in this browser." };
+/**
+ * Speak `text` in `lang` (BCP-47, e.g. "ka-GE"; omitted or "auto" = guess from the script).
+ * Returns { ok, message? } so the UI can show a hint when no matching voice exists.
+ */
+export function speak(text, lang = "auto") {
+  if (!speechSupported()) return { ok: false, message: "Этот браузер не умеет озвучивать текст." };
   const synth = window.speechSynthesis;
   synth.cancel();
 
-  const lang = detectLang(text);
+  lang = !lang || lang === "auto" ? detectLang(text) : lang;
   const utterance = new SpeechSynthesisUtterance(text);
   utterance.lang = lang;
   utterance.rate = 0.9;
@@ -44,7 +47,7 @@ export function speak(text) {
   synth.speak(utterance);
 
   if (!voice && voices.length && LANG_NAMES[lang]) {
-    return { ok: true, message: `No ${LANG_NAMES[lang]} voice is installed on this device, so pronunciation may be off.` };
+    return { ok: true, message: `На этом устройстве нет голоса для ${LANG_NAMES[lang]}, произношение может быть неточным.` };
   }
   return { ok: true };
 }

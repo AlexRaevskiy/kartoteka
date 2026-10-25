@@ -1,47 +1,47 @@
 /**
- * Small shared UI pieces. Styling comes from the .fc-* classes in index.css.
+ * Shared M3-style UI pieces: buttons live in CSS (.fc-btn-*), these are the stateful bits.
+ *   Spinner, SpeakButton, BoxBadge, ExampleSentence, EmptyPanel, Switch,
+ *   Sheet (bottom sheet / dialog), Menu (three-dots), TopBar, ProgressBar
  */
-import React, { useEffect, useRef, useState } from "react";
-import { Loader2, Volume2, X } from "lucide-react";
+import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { ArrowLeft, Loader2, MoreVertical, Volume2, X } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { cx, splitOnTerm } from "../lib/utils.js";
 
 export function Spinner({ size = 18, className }) {
   return <Loader2 size={size} className={cx("fc-spin", className)} aria-hidden="true" />;
 }
 
-/** Pronounce button. Stops propagation so it never flips/swipes the card it sits on. */
-export function SpeakButton({ text, onSpeak, className }) {
+/** "Gramophone" button: reads the text aloud with the deck's language. */
+export function SpeakButton({ text, lang, onSpeak, className, size = 20 }) {
   return (
     <button
       type="button"
-      className={cx("fc-btn fc-btn-quiet fc-icon-btn", className)}
-      aria-label={`Pronounce ${text}`}
-      title="Pronounce"
+      className={cx("fc-btn fc-icon-btn", className)}
+      aria-label={`Озвучить: ${text}`}
+      title="Озвучить"
       onPointerDown={(e) => e.stopPropagation()}
       onClick={(e) => {
         e.stopPropagation();
-        onSpeak(text);
+        onSpeak(text, lang);
       }}
       onKeyDown={(e) => e.stopPropagation()}
     >
-      <Volume2 size={18} />
+      <Volume2 size={size} />
     </button>
   );
 }
 
 export function BoxBadge({ box }) {
   return (
-    <span className="fc-chip fc-chip-muted">
+    <span className="fc-badge fc-badge-muted">
       <span className="w-2 h-2 rounded-full" style={{ background: `var(--box-${box})` }} />
-      Box {box}
+      Коробка {box}
     </span>
   );
 }
 
-/**
- * Example sentence with the term highlighted (mode="highlight") or blanked out (mode="mask",
- * used when the term is the answer the learner still has to produce).
- */
+/** Example sentence with the term highlighted, or blanked out when the term is the answer. */
 export function ExampleSentence({ sentence, term, mode = "highlight", className }) {
   if (!sentence) return null;
   return (
@@ -49,7 +49,7 @@ export function ExampleSentence({ sentence, term, mode = "highlight", className 
       {splitOnTerm(sentence, term).map((part, i) =>
         part.hit ? (
           mode === "mask" ? (
-            <span key={i} className="fc-blank" aria-label="blank">
+            <span key={i} className="fc-blank" aria-label="пропуск">
               {part.text}
             </span>
           ) : (
@@ -63,51 +63,28 @@ export function ExampleSentence({ sentence, term, mode = "highlight", className 
   );
 }
 
-export function EmptyPanel({ icon: Icon, title, body, actions, tone, children }) {
+export function EmptyPanel({ icon: Icon, title, body, actions, tone, children, className }) {
   return (
-    <div className="fc-panel p-6 sm:p-10 text-center fc-in">
+    <div className={cx("fc-panel p-6 sm:p-10 text-center fc-in", className)}>
       {Icon ? (
         <div
-          className="mx-auto w-12 h-12 rounded-xl flex items-center justify-center"
-          style={{ background: tone === "good" ? "var(--good-soft)" : "var(--accent-soft)" }}
+          className={cx(
+            "mx-auto w-14 h-14 rounded-2xl flex items-center justify-center",
+            tone === "good" ? "bg-success-container text-success" : "bg-primary-container text-on-primary-container"
+          )}
         >
-          <Icon size={22} className={tone === "good" ? "fc-good" : "fc-accent"} />
+          <Icon size={26} />
         </div>
       ) : null}
-      <h2 className="fc-display text-xl font-bold mt-4">{title}</h2>
-      {body ? <p className="fc-muted mt-1 max-w-md mx-auto">{body}</p> : null}
+      <h2 className="text-title-lg mt-4">{title}</h2>
+      {body ? <p className="text-body-md text-on-surface-variant mt-1 max-w-md mx-auto">{body}</p> : null}
       {children}
       {actions ? <div className="flex flex-wrap gap-2 justify-center mt-5">{actions}</div> : null}
     </div>
   );
 }
 
-/** Two-step destructive button: first tap arms it, second tap confirms (no browser confirm()). */
-export function ConfirmButton({ label, confirmLabel, onConfirm, icon: Icon, className }) {
-  const [armed, setArmed] = useState(false);
-  useEffect(() => {
-    if (!armed) return undefined;
-    const t = setTimeout(() => setArmed(false), 4000);
-    return () => clearTimeout(t);
-  }, [armed]);
-  return (
-    <button
-      type="button"
-      className={cx("fc-btn px-3 py-2 text-sm", armed ? "fc-btn-danger" : "fc-btn-ghost", className)}
-      onClick={() => {
-        if (armed) {
-          setArmed(false);
-          onConfirm();
-        } else setArmed(true);
-      }}
-    >
-      {Icon ? <Icon size={15} /> : null} {armed ? confirmLabel : label}
-    </button>
-  );
-}
-
-/** Accessible on/off switch. */
-export function Switch({ checked, onChange, label, id }) {
+export function Switch({ checked, onChange, label, id, disabled }) {
   return (
     <button
       id={id}
@@ -115,21 +92,31 @@ export function Switch({ checked, onChange, label, id }) {
       role="switch"
       aria-checked={checked}
       aria-label={label}
-      className="fc-switch"
+      disabled={disabled}
+      className="fc-switch disabled:opacity-40"
       onClick={() => onChange(!checked)}
     />
   );
 }
 
+export function ProgressBar({ value, color = "var(--md-primary)", label, className }) {
+  const v = Math.max(0, Math.min(100, value));
+  return (
+    <div className={cx("fc-meter", className)} role="progressbar" aria-label={label} aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(v)}>
+      <span style={{ width: `${v}%`, background: color }} />
+    </div>
+  );
+}
+
 /**
- * Modal dialog. Bottom sheet on phones, centered card on larger screens.
- * Closes on Escape and on a tap outside.
+ * Bottom sheet on phones, centred dialog on larger screens.
+ * Closes on Escape, on the scrim, and (optionally) with the X.
  */
-export function Modal({ title, subtitle, onClose, children, footer, labelId = "modal-title", as = "div", onSubmit }) {
+export function Sheet({ title, subtitle, onClose, children, footer, labelId = "sheet-title", as = "div", onSubmit, wide = false, dialog = false }) {
   const closeRef = useRef(onClose);
   closeRef.current = onClose;
   useEffect(() => {
-    const onKey = (e) => e.key === "Escape" && closeRef.current();
+    const onKey = (e) => e.key === "Escape" && closeRef.current?.();
     window.addEventListener("keydown", onKey);
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
@@ -138,71 +125,136 @@ export function Modal({ title, subtitle, onClose, children, footer, labelId = "m
       document.body.style.overflow = prev;
     };
   }, []);
-
   const Panel = as;
   return (
     <div
-      className="fixed inset-0 z-40 flex items-end sm:items-center justify-center fc-overlay sm:px-4"
-      onMouseDown={(e) => e.target === e.currentTarget && onClose()}
+      className={cx("fixed inset-0 z-50 flex justify-center fc-overlay", dialog ? "items-center px-6" : "items-end sm:items-center sm:px-4")}
+      onMouseDown={(e) => e.target === e.currentTarget && onClose?.()}
     >
       <Panel
         role="dialog"
         aria-modal="true"
         aria-labelledby={labelId}
-        className="fc-panel fc-in w-full max-w-2xl flex flex-col overflow-hidden rounded-b-none sm:rounded-2xl"
-        style={{ maxHeight: "min(92dvh, 48rem)", paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
+        className={cx("fc-sheet fc-sheet-in w-full flex flex-col overflow-hidden", wide ? "max-w-2xl" : "max-w-lg", dialog && "rounded-[28px]")}
+        style={{ maxHeight: "min(92dvh, 52rem)", paddingBottom: dialog ? 0 : "env(safe-area-inset-bottom, 0px)" }}
         onSubmit={onSubmit}
       >
-        <div className="flex items-start justify-between gap-3 p-5 fc-border-b">
+        {!dialog ? <div className="fc-sheet-handle sm:hidden" aria-hidden="true" /> : null}
+        <div className={cx("flex items-start justify-between gap-3 px-6", dialog ? "pt-6" : "pt-3 sm:pt-6")}>
           <div className="min-w-0">
-            <h2 id={labelId} className="fc-display text-xl font-bold">
+            <h2 id={labelId} className="text-headline-sm">
               {title}
             </h2>
-            {subtitle ? <p className="text-sm fc-muted mt-0.5">{subtitle}</p> : null}
+            {subtitle ? <p className="text-body-md text-on-surface-variant mt-1">{subtitle}</p> : null}
           </div>
-          <button type="button" className="fc-btn fc-btn-quiet fc-icon-btn" aria-label="Close" onClick={onClose}>
-            <X size={18} />
-          </button>
+          {onClose && !dialog ? (
+            <button type="button" className="fc-btn fc-icon-btn -mr-3 -mt-1" aria-label="Закрыть" onClick={onClose}>
+              <X size={22} />
+            </button>
+          ) : null}
         </div>
-        <div className="p-5 flex flex-col gap-4 overflow-auto min-h-0">{children}</div>
-        {footer ? <div className="flex flex-wrap justify-end gap-2 p-4 fc-border-t">{footer}</div> : null}
+        <div className="px-6 py-4 flex flex-col gap-4 overflow-auto min-h-0">{children}</div>
+        {footer ? <div className="flex flex-wrap justify-end gap-2 px-6 pb-6 pt-2">{footer}</div> : null}
       </Panel>
     </div>
   );
 }
 
-/** Toast stack (bottom center, above the iPhone home indicator). */
-export function Toasts({ toasts, onDismiss }) {
+/**
+ * Three-dots menu. items: [{ label, icon, onClick, danger, hidden }]
+ */
+export function Menu({ items, label = "Ещё", icon: Icon = MoreVertical, align = "right" }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+  const menuRef = useRef(null);
+  const [flipUp, setFlipUp] = useState(false);
+
+  useEffect(() => {
+    if (!open) return undefined;
+    const close = (e) => ref.current && !ref.current.contains(e.target) && setOpen(false);
+    const esc = (e) => e.key === "Escape" && setOpen(false);
+    document.addEventListener("pointerdown", close);
+    window.addEventListener("keydown", esc);
+    return () => {
+      document.removeEventListener("pointerdown", close);
+      window.removeEventListener("keydown", esc);
+    };
+  }, [open]);
+
+  // Open upwards if there's no room below (e.g. a menu near the bottom of the screen).
+  useLayoutEffect(() => {
+    if (!open || !menuRef.current || !ref.current) return;
+    const btn = ref.current.getBoundingClientRect();
+    setFlipUp(btn.bottom + menuRef.current.offsetHeight + 16 > window.innerHeight && btn.top > menuRef.current.offsetHeight);
+  }, [open]);
+
   return (
-    <div
-      className="fixed left-0 right-0 z-50 flex flex-col items-center gap-2 pointer-events-none fc-gutter"
-      style={{ bottom: "calc(16px + env(safe-area-inset-bottom, 0px))" }}
-      role="status"
-      aria-live="polite"
-    >
-      {toasts.map((t) => (
-        <div key={t.id} className="fc-toast fc-in rounded-xl pl-4 pr-2 py-2 text-sm font-bold shadow-lg max-w-md w-full sm:w-auto flex items-center gap-3 pointer-events-auto">
-          {t.icon ? <t.icon size={16} className="shrink-0" /> : null}
-          <span className="flex-1 py-1">{t.text}</span>
-          {t.action ? (
-            <button
-              type="button"
-              className="fc-btn px-3 py-1.5 text-sm"
-              style={{ background: "var(--accent)", color: "var(--accent-fg)", minHeight: "2.25rem" }}
-              onClick={() => {
-                t.action.onClick();
-                onDismiss(t.id);
-              }}
-            >
-              {t.action.label}
-            </button>
-          ) : (
-            <button type="button" className="fc-btn fc-icon-btn opacity-70" aria-label="Dismiss" onClick={() => onDismiss(t.id)}>
-              <X size={15} />
-            </button>
-          )}
+    <div className="relative" ref={ref}>
+      <button type="button" className="fc-btn fc-icon-btn" aria-haspopup="menu" aria-expanded={open} aria-label={label} onClick={() => setOpen((o) => !o)}>
+        <Icon size={22} />
+      </button>
+      {open ? (
+        <div
+          ref={menuRef}
+          role="menu"
+          className={cx("fc-menu fc-in absolute z-40", align === "right" ? "right-0" : "left-0", flipUp ? "bottom-full mb-1" : "top-full mt-1")}
+          style={{ maxWidth: "calc(100vw - 32px)" }}
+        >
+          {items
+            .filter((i) => !i.hidden)
+            .map((item, idx) =>
+              item.divider ? (
+                <div key={`d${idx}`} className="my-2 border-t border-outline-variant" />
+              ) : (
+                <button
+                  key={item.label}
+                  type="button"
+                  role="menuitem"
+                  className={cx("fc-menu-item", item.danger && "is-danger")}
+                  onClick={() => {
+                    setOpen(false);
+                    item.onClick();
+                  }}
+                >
+                  {item.icon ? <item.icon size={20} className={item.danger ? "" : "text-on-surface-variant"} /> : null}
+                  <span>{item.label}</span>
+                </button>
+              )
+            )}
         </div>
-      ))}
+      ) : null}
     </div>
+  );
+}
+
+/**
+ * M3 small top app bar. Changes tone when the page is scrolled.
+ * `back`: true → navigate(-1) (or to `backTo` when there's no history, e.g. opened from a link).
+ */
+export function TopBar({ title, back, backTo = "/", actions, children, className }) {
+  const navigate = useNavigate();
+  const [scrolled, setScrolled] = useState(false);
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 4);
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+  const goBack = () => (window.history.state?.idx > 0 ? navigate(-1) : navigate(backTo, { replace: true }));
+  return (
+    <header className={cx("fc-topbar sticky top-0 z-30", scrolled && "is-scrolled", className)}>
+      <div className="fc-gutter">
+        <div className="mx-auto max-w-3xl flex items-center gap-1 h-16">
+          {back ? (
+            <button type="button" className="fc-btn fc-icon-btn -ml-3 text-on-surface" aria-label="Назад" onClick={goBack}>
+              <ArrowLeft size={24} />
+            </button>
+          ) : null}
+          <div className="min-w-0 flex-1 text-title-lg truncate">{title}</div>
+          {children}
+          {actions ? <div className="flex items-center -mr-3">{actions}</div> : null}
+        </div>
+      </div>
+    </header>
   );
 }

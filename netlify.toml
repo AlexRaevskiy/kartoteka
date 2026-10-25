@@ -6,11 +6,17 @@
   command = "npm run build"
   publish = "dist"
 
+[functions]
+  directory = "netlify/functions"
+  node_bundler = "esbuild"
+  # firebase-admin ships native/optional deps — include it as a normal node_module instead of bundling.
+  external_node_modules = ["firebase-admin"]
+
 [build.environment]
   NODE_VERSION = "22"
   # Firebase web config values are public by design (security comes from Firestore rules),
   # and Vite inlines them into the bundle. Tell Netlify's secret scanner not to fail the build on them.
-  SECRETS_SCAN_OMIT_KEYS = "VITE_FIREBASE_API_KEY,VITE_FIREBASE_AUTH_DOMAIN,VITE_FIREBASE_PROJECT_ID,VITE_FIREBASE_STORAGE_BUCKET,VITE_FIREBASE_MESSAGING_SENDER_ID,VITE_FIREBASE_APP_ID"
+  SECRETS_SCAN_OMIT_KEYS = "VITE_FIREBASE_API_KEY,VITE_FIREBASE_AUTH_DOMAIN,VITE_FIREBASE_PROJECT_ID,VITE_FIREBASE_STORAGE_BUCKET,VITE_FIREBASE_MESSAGING_SENDER_ID,VITE_FIREBASE_APP_ID,VITE_FIREBASE_VAPID_KEY"
 
 # ── Redirects (order matters: first match wins) ──────────────────────────────
 
@@ -27,7 +33,8 @@
 #   status = 200
 #   force = true
 
-# SPA fallback: any unknown path serves index.html, so refreshing /anything never 404s.
+# SPA fallback for React Router: /deck/:id, /folder/:id, /profile … all serve index.html,
+# so refreshing or opening a shared link never 404s.
 # (Real files such as /assets/*.js or /sw.js are served normally because this rule is not forced.)
 [[redirects]]
   from = "/*"

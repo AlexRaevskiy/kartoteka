@@ -8,7 +8,7 @@
  * - Guest: anonymous account, data still syncs to Firestore. Guests can later "upgrade" to
  *   Google; the account is linked, so the uid and all decks are kept.
  */
-import { useCallback, useEffect, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useState } from "react";
 import {
   onAuthStateChanged,
   signInWithPopup,
@@ -29,13 +29,17 @@ export function authErrorMessage(err) {
   const code = err?.code || "";
   if (code.includes("popup-closed-by-user") || code.includes("cancelled-popup-request")) return null; // user closed it: not an error
   if (code.includes("unauthorized-domain"))
-    return `This domain isn't allowed to sign in yet. Add "${window.location.hostname}" in Firebase Console → Authentication → Settings → Authorized domains.`;
+    return `Этот домен ещё не разрешён для входа. Добавьте «${window.location.hostname}» в Firebase Console → Authentication → Settings → Authorized domains.`;
   if (code.includes("operation-not-allowed"))
-    return "This sign-in method is turned off. Enable it in Firebase Console → Authentication → Sign-in method.";
-  if (code.includes("network-request-failed")) return "No connection. Check your internet and try again.";
-  if (code.includes("too-many-requests")) return "Too many attempts. Wait a minute and try again.";
-  return err?.message || "Sign-in failed. Please try again.";
+    return "Этот способ входа выключен. Включите его в Firebase Console → Authentication → Sign-in method.";
+  if (code.includes("network-request-failed")) return "Нет соединения. Проверьте интернет и попробуйте снова.";
+  if (code.includes("too-many-requests")) return "Слишком много попыток. Подождите минуту.";
+  return err?.message || "Не удалось войти. Попробуйте ещё раз.";
 }
+
+/** The useAuth() result, shared with every screen (Profile needs sign-out / link Google). */
+export const AuthContext = createContext(null);
+export const useAuthContext = () => useContext(AuthContext);
 
 const POPUP_FALLBACK_CODES = ["auth/popup-blocked", "auth/operation-not-supported-in-this-environment"];
 

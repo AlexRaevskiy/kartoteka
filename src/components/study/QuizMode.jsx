@@ -1,6 +1,7 @@
 /**
- * Mode 2 — Multiple-choice quiz. Wrong options are drawn from other cards in the deck.
- * Keys 1–4 answer, Enter continues. The example sentence appears after answering.
+ * Mode: multiple-choice test. Wrong options are drawn from the other cards of the session
+ * (a folder session mixes several decks). Keys 1–4 answer, Enter continues.
+ * The example sentence appears after answering.
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Check, X } from "lucide-react";
@@ -8,6 +9,7 @@ import { BoxBadge, ExampleSentence, SpeakButton } from "../ui.jsx";
 import RatingHint from "./RatingHint.jsx";
 import { cx, isTypingTarget, shuffle } from "../../lib/utils.js";
 import { tidy } from "../../lib/levenshtein.js";
+import { speechLang } from "../../lib/languages.js";
 
 const OPTION_COUNT = 4;
 
@@ -27,11 +29,12 @@ function buildOptions(card, cards, reverse) {
   return shuffle([{ text: correct, correct: true }, ...distractors.map((text) => ({ text, correct: false }))]);
 }
 
-export default function QuizMode({ card, deck, reverse, onAnswer, keyboardEnabled, onSpeak, tracked }) {
+export default function QuizMode({ card, deck, pool, reverse, onAnswer, keyboardEnabled, onSpeak, tracked, goal }) {
   const prompt = reverse ? card.definition : card.term;
+  const promptLang = speechLang(deck, reverse ? "definition" : "term", prompt);
   // Options are fixed for this card (the component is re-mounted per card).
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  const options = useMemo(() => buildOptions(card, deck.cards, reverse), [card.id, reverse]);
+  const options = useMemo(() => buildOptions(card, pool || deck.cards, reverse), [card.id, reverse]);
   const [picked, setPicked] = useState(null);
   const timer = useRef(null);
   const answered = useRef(false);
@@ -80,13 +83,13 @@ export default function QuizMode({ card, deck, reverse, onAnswer, keyboardEnable
     <div className="flex flex-col gap-4 w-full max-w-2xl mx-auto fc-in">
       <div className="fc-panel p-5 sm:p-7">
         <div className="flex items-center justify-between gap-2">
-          <span className="fc-eyebrow">{reverse ? "Choose the term" : "Choose the definition"}</span>
+          <span className="fc-eyebrow">{reverse ? "Выберите термин" : "Выберите определение"}</span>
           <div className="flex items-center gap-1">
             <BoxBadge box={card.box} />
-            <SpeakButton text={prompt} onSpeak={onSpeak} />
+            <SpeakButton text={prompt} lang={promptLang} onSpeak={onSpeak} />
           </div>
         </div>
-        <div className="fc-term text-3xl sm:text-4xl mt-3 mb-1">{prompt}</div>
+        <div className="fc-term text-headline-md sm:text-headline-lg mt-3 mb-1">{prompt}</div>
       </div>
 
       <div className="grid gap-2.5 sm:grid-cols-2">
@@ -101,7 +104,7 @@ export default function QuizMode({ card, deck, reverse, onAnswer, keyboardEnable
               onClick={() => choose(i)}
             >
               <span className="fc-num">{i + 1}</span>
-              <span className="flex-1 min-w-0 font-bold" style={{ overflowWrap: "anywhere" }}>
+              <span className="flex-1 min-w-0 text-body-lg font-medium" style={{ overflowWrap: "anywhere" }}>
                 {o.text}
               </span>
               {state === "is-correct" ? <Check size={18} className="fc-good shrink-0" /> : null}
@@ -113,29 +116,29 @@ export default function QuizMode({ card, deck, reverse, onAnswer, keyboardEnable
 
       <div className="flex flex-col gap-3" style={{ minHeight: "3rem" }} aria-live="polite">
         {picked === null ? (
-          <p className="text-xs fc-muted">
+          <p className="text-body-sm text-on-surface-variant">
             <span className="hidden sm:inline">
-              Press <span className="fc-kbd">1</span>–<span className="fc-kbd">{options.length}</span> to answer.{" "}
+              Клавиши <span className="fc-kbd">1</span>–<span className="fc-kbd">{options.length}</span> — ответ.{" "}
             </span>
-            <RatingHint card={card} tracked={tracked} />
+            <RatingHint card={card} tracked={tracked} goal={goal} />
           </p>
         ) : (
           <>
             {card.exampleSentence ? (
-              <div className="fc-surface2 rounded-xl px-4 py-3 fc-in">
+              <div className="bg-surface-container-high rounded-2xl px-4 py-3 fc-in">
                 <ExampleSentence sentence={card.exampleSentence} term={card.term} />
               </div>
             ) : null}
             <div className="flex flex-wrap items-center justify-between gap-3">
               {isRight ? (
-                <p className="fc-good font-bold inline-flex items-center gap-2">
-                  <Check size={18} /> Correct
+                <p className="fc-good font-medium inline-flex items-center gap-2">
+                  <Check size={18} /> Верно
                 </p>
               ) : (
-                <p className="fc-bad font-bold">Not quite. The right answer is in green.</p>
+                <p className="fc-bad font-medium">Неверно — правильный ответ отмечен зелёным.</p>
               )}
               <button type="button" className="fc-btn fc-btn-primary px-4 py-2.5" onClick={() => finish(isRight)} autoFocus={!isRight}>
-                Next <span className="fc-kbd hidden sm:inline">Enter</span>
+                Дальше <span className="fc-kbd hidden sm:inline">Enter</span>
               </button>
             </div>
           </>

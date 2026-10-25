@@ -1,63 +1,95 @@
 /**
- * Export / import of the whole library as a JSON file.
+ * Full JSON backup (Profile → Экспорт данных) and restore.
  *
- * Export format (version 2):
+ * Format v3:
  * {
- *   "app": "kartoteka",
- *   "version": 2,
- *   "exportedAt": "2026-10-14T18:00:00.000Z",
- *   "account": { "uid": "...", "email": "..." },
- *   "settings": { ... },
- *   "log": { "2026-10-14": 23 },
- *   "decks": [ { "name", "description", "createdAt", "cards": [ { term, definition, exampleSentence, box, lastReviewed, ... } ] } ]
+ *   app: "kartoteka", version: 3, exportedAt,
+ *   account: { uid, email, guest },
+ *   profile: { settings, currentStreak, longestStreak, lastStudyDate, dailyProgress, log },
+ *   decks:   [{ id, title, description, termLang, defLang, visibility, editPolicy, createdAt,
+ *              cards: [{ id, term, definition, exampleSentence }],
+ *              progress: { cardId: { box, lastReviewed, reviews, lapses } }, starred: [cardId] }],
+ *   folders: [{ name, color, deckIds: [oldDeckId], tags: [{ name, deckIds }] }]
  * }
+ * Restore also accepts v1/v2 backups (progress stored inside each card).
  */
-import { normalizeDeck, MAX_CARDS_PER_DECK } from "./model.js";
+import { MAX_CARDS_PER_DECK, normalizeCardContent, normalizeProgress, progressFromLegacyCard } from "./model.js";
 
-export function buildBackup({ user, settings, log, decks }) {
+export function buildBackup({ user, profile, decks, library, folders }) {
   return {
     app: "kartoteka",
-    version: 2,
+    version: 3,
     exportedAt: new Date().toISOString(),
     account: user ? { uid: user.uid, email: user.email || null, guest: !!user.isAnonymous } : null,
-    settings,
-    log,
-    decks: decks.map(({ id, ...rest }) => ({ id, ...rest })),
+    profile: {
+      settings: profile?.settings || {},
+      currentStreak: profile?.currentStreak || 0,
+      longestStreak: profile?.longestStreak || 0,
+      lastStudyDate: profile?.lastStudyDate || null,
+      dailyProgress: profile?.dailyProgress || null,
+      log: profile?.log || {},
+    },
+    decks: decks.map((d) => ({
+      id: d.id,
+      title: d.title,
+      description: d.description,
+      ownerName: d.ownerName,
+      own: d.ownerId === user?.uid,
+      termLang: d.termLang,
+      defLang: d.defLang,
+      visibility: d.visibility,
+      editPolicy: d.editPolicy,
+      createdAt: d.createdAt,
+      cards: d.cards.map(({ id, term, definition, exampleSentence }) => ({ id, term, definition, exampleSentence })),
+      progress: library[d.id]?.progress || {},
+      starred: library[d.id]?.starred || [],
+    })),
+    folders: folders.map((f) => ({ name: f.name, color: f.color, deckIds: f.deckIds, tags: f.tags.map((t) => ({ name: t.name, deckIds: t.deckIds })) })),
   };
 }
 
-/** Trigger a browser download of the backup. Works on desktop, Android and iOS 15+. */
-export function downloadJSON(data, filename) {
-  const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  a.rel = "noopener";
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 1500);
-}
-
 export function backupFilename(now = new Date()) {
-  const stamp = now.toISOString().slice(0, 10);
-  return `kartoteka-backup-${stamp}.json`;
+  return `kartoteka-backup-${now.toISOString().slice(0, 10)}.json`;
 }
 
 /**
- * Validate a parsed backup (v2, or a v1 export from the single-file version) and return
- * clean decks ready to be written. Throws a readable Error if the file is not a backup.
+ * Parse any Kartoteka backup into { decks, folders }.
+ * decks: [{ oldId, title, description, termLang, defLang, cards, progress, starred }]
+ * Throws a readable Error if the file is not a backup.
  */
 export function readBackup(json) {
-  const decksRaw = Array.isArray(json) ? json : json?.decks;
-  if (!Array.isArray(decksRaw)) {
-    throw new Error("This file isn't a Kartoteka backup: no decks were found in it.");
-  }
-  const decks = decksRaw
+  const raw = Array.isArray(json) ? json : json?.decks;
+  if (!Array.isArray(raw)) throw new Error("Это не резервная копия Kartoteka: в файле нет наборов.");
+
+  const decks = raw
     .filter((d) => d && Array.isArray(d.cards))
-    .map((d) => normalizeDeck({ ...d, id: d.id || "import" }))
-    .map((d) => ({ ...d, cards: d.cards.slice(0, MAX_CARDS_PER_DECK) }));
-  if (!decks.length) throw new Error("The backup contains no decks.");
-  return { decks, log: json?.log && typeof json.log === "object" ? json.log : {}, settings: json?.settings || null };
+    .map((d, i) => {
+      const cards = d.cards.map(normalizeCardContent).filter(Boolean).slice(0, MAX_CARDS_PER_DECK);
+      // v3 keeps progress in a map; v1/v2 kept it inside each card.
+      const progress = {};
+      if (d.progress && typeof d.progress === "object") {
+        for (const [id, p] of Object.entries(d.progress)) progress[id] = normalizeProgress(p);
+      } else {
+        d.cards.forEach((c, idx) => {
+          const p = progressFromLegacyCard(c);
+          if (p && cards[idx]) progress[cards[idx].id] = p;
+        });
+      }
+      return {
+        oldId: String(d.id || `import-${i}`),
+        title: String(d.title ?? d.name ?? "Импортированный набор"),
+        description: String(d.description || ""),
+        termLang: d.termLang || "auto",
+        defLang: d.defLang || "auto",
+        cards,
+        progress,
+        starred: Array.isArray(d.starred) ? d.starred : [],
+      };
+    });
+  if (!decks.length) throw new Error("В резервной копии нет наборов.");
+
+  const folders = Array.isArray(json?.folders)
+    ? json.folders.filter((f) => f?.name).map((f) => ({ name: String(f.name), color: f.color, deckIds: f.deckIds || [], tags: f.tags || [] }))
+    : [];
+  return { decks, folders };
 }

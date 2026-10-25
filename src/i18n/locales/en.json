@@ -1,0 +1,109 @@
+{
+  "nav": {
+    "aria": "Main navigation",
+    "home": "Home",
+    "create": "Create",
+    "profile": "Profile"
+  },
+  "streak": {
+    "aria": "Streak and daily goal",
+    "days_one": "day",
+    "days_other": "days",
+    "inARow": "{{count}} {{days}} in a row",
+    "goal": "Goal: {{goal}}",
+    "goalProgress": "Daily goal progress",
+    "record": "Best: {{count}}",
+    "recordLabel": "best streak",
+    "changeGoal": "Change goal",
+    "phrases": {
+      "start": [
+        "A great day to start!",
+        "A couple of minutes and the flame is lit 🔥",
+        "Shall we? The first round matters most."
+      ],
+      "started": [
+        "Great start!",
+        "Good beginning, keep going!",
+        "Warmed up — let's keep going!"
+      ],
+      "streak": [
+        "{n} {days} in a row — you're on fire!",
+        "{n} {days} in a row! Don't stop now.",
+        "{n}-{days} streak. Keep the flame alive!"
+      ],
+      "almostRounds": [
+        "Almost there, just one more round!",
+        "One more round and you're done for today!"
+      ],
+      "almostMinutes": [
+        "Almost there, only {m} min left!",
+        "{m} more min and the goal is done!"
+      ],
+      "met": [
+        "Well done, today's goal is complete!",
+        "Daily goal done. The flame is burning 🔥",
+        "Great job today! Time to rest ☕️"
+      ]
+    }
+  },
+  "goal": {
+    "minutes": "{{count}} min",
+    "rounds_one": "{{count}} round",
+    "rounds_other": "{{count}} rounds",
+    "perDay": "{{value}} a day",
+    "typeMinutes": "By time",
+    "typeRounds": "By rounds"
+  },
+  "profile": {
+    "title": "Profile",
+    "guest": "Guest",
+    "guestHint": "Your data is tied to this browser",
+    "saveToGoogle": "Save to Google account",
+    "goalSection": "Daily goal",
+    "goalType": "Goal type",
+    "goalSize": "Goal size",
+    "goalNow": "Current: {{goal}}. The 🔥 streak grows on days you meet your goal.",
+    "goalActiveTime": " Only active study time counts.",
+    "roundSize": "Cards per round",
+    "notifications": "Reminders",
+    "push": "Push notifications",
+    "pushHint": "Only if today's goal isn't met yet",
+    "schedule": "Frequency",
+    "and": " and ",
+    "permission": "Browser permission:",
+    "permGranted": "granted",
+    "permDenied": "blocked",
+    "permUnsupported": "not supported",
+    "permDefault": "not requested",
+    "requestPermission": "Request permission",
+    "test": "Test",
+    "appearance": "Appearance",
+    "theme": "Theme",
+    "themeSystem": "System",
+    "themeLight": "Light",
+    "themeDark": "Dark",
+    "reverse": "Definition first",
+    "language": "Interface language",
+    "data": "Data",
+    "export": "Export data (JSON)",
+    "exportHint": "All sets, Leitner progress, folders and streak",
+    "restore": "Restore from backup…",
+    "restoreHint": "Sets are added, nothing is overwritten",
+    "install": "Install app",
+    "signOut": "Sign out",
+    "schedules": {
+      "evening": "Once a day, in the evening",
+      "morning_evening": "Morning and evening"
+    }
+  },
+  "toast": {
+    "notificationsUnsupported": "Notifications are not supported",
+    "permissionGranted": "Permission granted",
+    "permissionDenied": "Permission not granted",
+    "remindersOff": "Reminders turned off",
+    "remindersOn": "Reminders turned on 🔔",
+    "testBody": "This is how reminders will look 🔥",
+    "testFailed": "Couldn't show the notification",
+    "exported": "Sets exported: {{count}}"
+  }
+}

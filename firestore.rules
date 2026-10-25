@@ -1,35 +1,122 @@
 rules_version = '2';
 
-// Kartoteka security rules
-// ------------------------------------------------------------
-// Every user owns exactly one branch of the database:
-//   users/{uid}                  → settings + daily review log
-//   users/{uid}/decks/{deckId}   → one deck, with its cards array (terms + Leitner progress)
-// Nobody can read or write another user's data.
-// Paste this into Firebase Console → Firestore Database → Rules → Publish.
+// ─────────────────────────────────────────────────────────────────────────────
+// Kartoteka security rules (schema v3)
+// Paste into Firebase Console → Firestore Database → Rules → Publish.
+//
+//   decks/{id}                 content; readable by owner, by everyone (visibility "public"),
+//                              or by users holding a valid password grant (visibility "password")
+//   deckStubs/{id}             public title/author card shown on the password screen
+//   deckSecrets/{id}           owner-only password hash (never readable by others)
+//   decks/{id}/grants/{uid}    created by a user who typed the right password;
+//                              the rule compares its hash with deckSecrets → no server needed
+//   folders/{id}               owner, or anyone if visibility "public"
+//   users/{uid}/**             private to that user (settings, streak, Leitner progress)
+// ─────────────────────────────────────────────────────────────────────────────
 
 service cloud.firestore {
-  match /databases/{database}/documents {
+  match /databases/{db}/documents {
 
-    function isOwner(uid) {
-      return request.auth != null && request.auth.uid == uid;
+    function signedIn() { return request.auth != null; }
+    function isUser(uid) { return signedIn() && request.auth.uid == uid; }
+
+    function secretOf(deckId) {
+      return get(/databases/$(db)/documents/deckSecrets/$(deckId)).data;
+    }
+    // True when the caller has a grant whose hash matches the CURRENT password.
+    // Changing the password therefore revokes every earlier grant automatically.
+    function hasGrant(deckId) {
+      let grant = /databases/$(db)/documents/decks/$(deckId)/grants/$(request.auth.uid);
+      return signedIn()
+        && exists(grant)
+        && get(grant).data.passwordHash == secretOf(deckId).passwordHash;
     }
 
-    match /users/{uid} {
-      allow read, write: if isOwner(uid);
+    function validDeck(d) {
+      return d.title is string && d.title.size() > 0 && d.title.size() <= 200
+        && d.cards is list && d.cards.size() <= 2000
+        && d.visibility in ['public', 'password', 'private']
+        && d.editPolicy in ['owner', 'password'];
+    }
 
-      match /decks/{deckId} {
-        allow read, delete: if isOwner(uid);
+    // ── Decks ────────────────────────────────────────────────────────────────
+    match /decks/{deckId} {
+      allow get: if (signedIn() && resource.data.ownerId == request.auth.uid)
+        || resource.data.visibility == 'public'
+        || (resource.data.visibility == 'password' && hasGrant(deckId));
 
-        // Light schema validation keeps a buggy client from corrupting data.
-        // 2000 cards per deck keeps each document safely under Firestore's 1 MB limit.
-        allow create, update: if isOwner(uid)
-          && request.resource.data.name is string
-          && request.resource.data.name.size() > 0
-          && request.resource.data.name.size() <= 120
-          && request.resource.data.cards is list
-          && request.resource.data.cards.size() <= 2000;
+      // Listing is only used for "my decks" (where ownerId == uid).
+      allow list: if signedIn() && resource.data.ownerId == request.auth.uid;
+
+      allow create: if signedIn()
+        && request.resource.data.ownerId == request.auth.uid
+        && validDeck(request.resource.data);
+
+      allow update: if signedIn() && validDeck(request.resource.data) && (
+        // owner: anything except handing the deck to someone else
+        (resource.data.ownerId == request.auth.uid
+          && request.resource.data.ownerId == resource.data.ownerId)
+        ||
+        // password editors: content only, never privacy/ownership
+        (resource.data.editPolicy == 'password' && hasGrant(deckId)
+          && request.resource.data.diff(resource.data).affectedKeys()
+               .hasOnly(['title', 'description', 'cards', 'cardCount', 'updatedAt', 'termLang', 'defLang']))
+      );
+
+      allow delete: if signedIn() && resource.data.ownerId == request.auth.uid;
+
+      match /grants/{uid} {
+        allow get: if isUser(uid);
+        allow create, update: if isUser(uid)
+          && request.resource.data.passwordHash is string
+          && request.resource.data.passwordHash == secretOf(deckId).passwordHash;
+        allow delete: if isUser(uid);
       }
+    }
+
+    // ── Public stub (title, author, privacy) ────────────────────────────────
+    match /deckStubs/{deckId} {
+      allow get: if true;
+      allow create: if signedIn() && request.resource.data.ownerId == request.auth.uid;
+      allow update: if signedIn() && (
+        (resource.data.ownerId == request.auth.uid && request.resource.data.ownerId == resource.data.ownerId)
+        || (get(/databases/$(db)/documents/decks/$(deckId)).data.editPolicy == 'password' && hasGrant(deckId)
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['title', 'cardCount', 'updatedAt']))
+      );
+      allow delete: if signedIn() && resource.data.ownerId == request.auth.uid;
+    }
+
+    // ── Password hash (owner only) ──────────────────────────────────────────
+    match /deckSecrets/{deckId} {
+      allow get, delete: if signedIn() && resource.data.ownerId == request.auth.uid;
+      allow create: if signedIn() && request.resource.data.ownerId == request.auth.uid
+        && request.resource.data.passwordHash is string;
+      allow update: if signedIn() && resource.data.ownerId == request.auth.uid
+        && request.resource.data.ownerId == request.auth.uid;
+    }
+
+    // ── Folders ─────────────────────────────────────────────────────────────
+    match /folders/{folderId} {
+      allow get: if (signedIn() && resource.data.ownerId == request.auth.uid)
+        || resource.data.visibility == 'public';
+      allow list: if signedIn() && resource.data.ownerId == request.auth.uid;
+      allow create: if signedIn()
+        && request.resource.data.ownerId == request.auth.uid
+        && request.resource.data.name is string
+        && request.resource.data.name.size() > 0 && request.resource.data.name.size() <= 80
+        && request.resource.data.deckIds is list && request.resource.data.deckIds.size() <= 500;
+      allow update: if signedIn()
+        && resource.data.ownerId == request.auth.uid
+        && request.resource.data.ownerId == resource.data.ownerId
+        && request.resource.data.deckIds.size() <= 500;
+      allow delete: if signedIn() && resource.data.ownerId == request.auth.uid;
+    }
+
+    // ── Per-user data ───────────────────────────────────────────────────────
+    match /users/{uid} {
+      allow read, write: if isUser(uid);
+      match /library/{deckId} { allow read, write: if isUser(uid); }
+      match /decks/{deckId}   { allow read, write: if isUser(uid); }   // legacy v2, read for migration
     }
   }
 }

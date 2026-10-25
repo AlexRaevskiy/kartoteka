@@ -1,184 +1,200 @@
-# Kartoteka — Leitner flashcards (PWA)
+# Kartoteka 3.0 — карточки по Лейтнеру (PWA)
 
-Spaced-repetition flashcards with a 5-box Leitner system, synced through Firebase and installable on iPhone, Android and desktop.
+React + Vite + Tailwind v4 (Material Design 3) + Firebase (Auth, Firestore, Cloud Messaging) + Netlify.
 
-- **Study modes:** flip cards (tap, keys or swipe), multiple-choice quiz, and a smart Write mode that uses Levenshtein distance to spot typos, highlight the exact letters, offer a retry and give partial credit
-- **Cards** have a term, a definition and an optional example sentence. The sentence shows on the back of the card, after a quiz answer, or as a hint in Write mode, with the term blanked out when it's the answer.
-- **Reverse mode:** study Definition → Term
-- **Quick Import:** paste `term — definition — example` lines, or open a .txt/.csv file
-- **Cloud sync** through Firestore, with real-time listeners and an offline cache. Sign in with Google, or try it as a guest and link Google later.
-- **Export** everything (decks plus Leitner progress) as JSON, and **restore** it from a backup
-- **PWA:** installable, works offline, and shows an "update available" prompt after each deploy
+## Что нового в 3.0
+
+| # | Функция | Где в коде |
+|---|---|---|
+| 1 | Режимы учёбы на весь экран (без дашборда, только урок и «Выйти») | `src/screens/StudyScreen.jsx` |
+| 2 | Раунды по 10/20/30 карточек, экран «Итоги раунда», «Продолжить» = раунд только из ошибок | `src/lib/rounds.js`, `src/hooks/useRounds.js`, `src/components/study/RoundSummary.jsx` |
+| 3 | Типографика Material 3: Roboto Flex + шкала M3 в Tailwind `@theme` | `src/index.css`, `src/main.jsx` |
+| 4 | Папки как метки: колода в нескольких папках, «Study All» по всем колодам папки | `src/screens/FolderScreen.jsx`, `src/data/LibraryProvider.jsx` |
+| 5 | Ударный режим 🔥 и цель дня (минуты или раунды) | `src/lib/goals.js`, `src/components/StreakWidget.jsx` |
+| 6 | Пуш-напоминания в 20:00, если цель не выполнена | `src/lib/reminders.js`, `src/lib/push.js`, `src/sw.js`, `netlify/functions/send-reminders.mjs` |
+| 7 | React Router + ссылки «Поделиться» | `src/App.jsx`, `src/lib/share.js` |
+| 8 | Нижняя навигация, «Вернуться к изучению», свайп папок | `src/components/BottomNav.jsx`, `src/screens/HomeScreen.jsx` |
+| 9 | Экран папки: поиск, теги («Экзамен 1»), сортировка, FAB «+», меню ⋮ | `src/screens/FolderScreen.jsx` |
+| 10 | Редактор набора: языки, «Кто видит», «Кто редактирует», пароль | `src/screens/EditorScreen.jsx`, `firestore.rules` |
+| 11 | Страница набора в стиле Quizlet: карусель, режимы, прогресс, ⭐, озвучка | `src/screens/DeckScreen.jsx`, `src/components/CardCarousel.jsx` |
+| 12 | Умная кнопка «Study this set» (IntersectionObserver) | `DeckScreen.jsx` |
+| 13 | 🔖 «Добавить в папку» и меню ⋮ (скачать, копия, сброс, инфо, удалить…) | `DeckScreen.jsx`, `src/components/sheets.jsx` |
+| 14 | «Choose a goal»: Cram for a test / Memorize it all → Start learn | `sheets.jsx` (`GoalSheet`), `src/lib/leitner.js` (`nextProgress`) |
+
+### Маршруты
+
+```
+/                       Главная (цель дня, «Вернуться к изучению», папки, наборы)    + нижняя навигация
+/profile                Профиль (цель, размер раунда, уведомления, тема, экспорт)     + нижняя навигация
+/create                 Новый набор (полноэкранный редактор)
+/deck/:id               Набор (ссылкой можно делиться)
+/deck/:id/edit          Редактирование
+/deck/:id/study         Учёба: ?mode=flashcards|learn|quiz|write &goal=memorize|cram &starred=1
+/folder/:id             Папка (ссылкой можно делиться)
+/folder/:id/study       «Study All» по всем наборам папки: ?tag=<id тега>
+```
+
+Пункт 1 просил обойтись без React Router, а пункт 7 — добавить его. Сделано так: учёба — это отдельный маршрут, который рисуется вне оболочки с навигацией. Получается тот же полноэкранный урок, но у него есть свой адрес и работает кнопка «Назад».
 
 ---
 
-## 1. Project structure
+## Модель данных (schema v3) и обратная совместимость
 
 ```
-kartoteka/
-├─ index.html                 iOS/Android PWA meta tags, theme colour
-├─ vite.config.js             Vite + React + Tailwind v4 + vite-plugin-pwa (manifest + service worker)
-├─ netlify.toml               build settings, SPA redirect (no 404 on refresh), cache headers
-├─ firestore.rules            database security rules (paste into Firebase console)
-├─ .env.example               Firebase config variables
-├─ public/                    icons: favicon.svg, pwa-192/512, maskable-512, apple-touch-icon-180
-├─ tests/logic.test.js        unit tests for Leitner, Levenshtein, parser, backup (npm test)
-└─ src/
-   ├─ main.jsx                entry, fonts, error boundary
-   ├─ App.jsx                 app shell: auth gate, workspace, export/restore, guest → Google
-   ├─ firebase.js             Firebase init (Auth + Firestore with offline cache)
-   ├─ index.css               design tokens (light/dark) + component classes
-   ├─ data/
-   │  ├─ store.js             the only file that talks to Firestore
-   │  ├─ useAuth.js           Google / guest sign-in, account linking
-   │  └─ useLibrary.js        live decks + settings, optimistic writes, sync status
-   ├─ hooks/                  useStudySession (queue engine), useInstallPrompt
-   ├─ lib/
-   │  ├─ leitner.js           box intervals, grading, due dates, stats
-   │  ├─ levenshtein.js       edit distance + alignment, typo tolerance, answer variants
-   │  ├─ parser.js            Quick Import parser (2 or 3 columns)
-   │  ├─ backup.js            JSON export / restore (also reads v1 front/back backups)
-   │  ├─ model.js             data model, limits, v1 → v2 migration
-   │  └─ speech.js, celebrate.js, utils.js
-   └─ components/
-      ├─ study/               StudyShell, FlashcardMode, QuizMode, WriteMode, DiffView
-      ├─ Header, DeckRail, BoxProgress, CardsManager, ImportDialog, PwaPrompts, screens, ui
+decks/{deckId}                 содержимое набора: title, description, termLang, defLang,
+                               visibility (public|password|private), editPolicy (owner|password),
+                               cards[{id, term, definition, exampleSentence}], ownerId, ownerName
+deckStubs/{deckId}             публичная «обложка»: название, автор, тип доступа (для экрана пароля)
+deckSecrets/{deckId}           SHA-256 пароля (читает только автор)
+decks/{deckId}/grants/{uid}    «пользователь ввёл верный пароль» (проверяется правилами)
+folders/{folderId}             name, color, deckIds[] (метка на колодах), tags[{id,name,deckIds}], visibility
+users/{uid}                    settings, currentStreak, longestStreak, lastStudyDate, dailyProgress, fcmTokens
+users/{uid}/library/{deckId}   ЛИЧНЫЙ прогресс Лейтнера: progress{cardId:{box,lastReviewed,…}}, starred[]
 ```
 
-### Firestore data model
+**Почему прогресс хранится отдельно от набора.** Общий набор учат разные люди, и у каждого свои коробки Лейтнера. Оценка карточки обновляет одно поле `progress.<cardId>`, поэтому два устройства больше не перезаписывают изменения друг друга.
 
-```
-users/{uid}                  { settings: { reverse, theme, activeDeckId, installHintDismissed }, log: { "2026-10-14": 23 } }
-users/{uid}/decks/{deckId}   { name, description, createdAt, updatedAt,
-                               cards: [{ id, term, definition, exampleSentence, box, lastReviewed, reviews, lapses, createdAt }] }
-```
+**Почему папка хранит список наборов, а не набор — поле `tags`.** Папкой можно поделиться, и в ней бывают чужие наборы, которые вы не можете редактировать. С точки зрения пользователя это те же метки: один набор может лежать в нескольких папках.
 
-Each deck's cards live inside the deck document, so loading a deck costs **one read**. That keeps you well inside the free Spark plan. Each deck is capped at 2,000 cards so the document stays under Firestore's 1 MB limit.
+**Старые наборы (v2, `users/{uid}/decks`).** При первом входе они автоматически переносятся (`src/data/migrate.js`):
+
+- id сохраняются;
+- прогресс из карточек переходит в `library`;
+- перенесённые наборы получают доступ «Только я»;
+- оригиналы не удаляются, им ставится отметка `migratedAt`;
+- текущий стрик восстанавливается по старому журналу повторений.
+
+Поле тегов старым наборам не нужно: они просто ещё не лежат ни в одной папке. В новых документах все отсутствующие поля получают значения по умолчанию (`normalizeDeck`, `normalizeFolder`). Резервные копии v1/v2 тоже импортируются.
 
 ---
 
-## 2. Firebase setup (one time, about 10 minutes)
+## Какие файлы заменить (если обновляете проект вручную)
 
-1. Go to <https://console.firebase.google.com> → **Add project** → name it (e.g. `kartoteka`). Google Analytics is optional.
-2. **Register a web app:** Project overview → **</>** (Web) → nickname `kartoteka-web` → *Register app*. Leave "Firebase Hosting" unchecked, because Netlify hosts the app. Keep the `firebaseConfig` values it shows you.
-3. **Authentication:** Build → Authentication → *Get started* → Sign-in method:
-   - enable **Google** (choose a support email) → Save
-   - enable **Anonymous** → Save
-4. **Firestore:** Build → Firestore Database → *Create database* → pick the location closest to you (e.g. `eur3` for Europe) → **Start in production mode**.
-5. **Rules:** in Firestore → **Rules**, replace everything with the contents of `firestore.rules` → **Publish**.
+Проще всего взять весь архив. Если переносите по файлам:
+
+**Удалить:**
+- `src/components/BoxProgress.jsx`
+- `src/components/CardsManager.jsx`
+- `src/components/DeckRail.jsx`
+- `src/components/Header.jsx`
+- `src/components/ImportDialog.jsx`
+- `src/components/study/StudyShell.jsx`
+- `src/hooks/useStudySession.js`
+- `src/data/useLibrary.js`
+
+**Заменить:**
+- корень проекта: `package.json`, `index.html`, `vite.config.js`, `netlify.toml`, `firestore.rules`, `.env.example`
+- `src/`: `App.jsx`, `main.jsx`, `index.css`
+- `src/components/`: `ui.jsx`, `screens.jsx`, `PwaPrompts.jsx`, `ErrorBoundary.jsx`
+- `src/components/study/`: `FlashcardMode.jsx`, `QuizMode.jsx`, `WriteMode.jsx`, `DiffView.jsx`, `RatingHint.jsx`
+- `src/data/`: `store.js`, `useAuth.js`
+- `src/lib/`: `model.js`, `leitner.js`, `backup.js`, `speech.js`
+- `tests/logic.test.js`
+
+**Добавить:**
+- `src/sw.js`
+- `src/screens/`: все 6 файлов
+- `src/components/`:
+  - `BottomNav.jsx`, `CardCarousel.jsx`, `DeckListItem.jsx`, `PasswordGate.jsx`
+  - `StreakWidget.jsx`, `providers.jsx`, `sheets.jsx`
+  - `study/LearnMode.jsx`, `study/RoundSummary.jsx`
+- `src/data/`: `LibraryProvider.jsx`, `useRemote.js`, `migrate.js`, `merge.js`
+- `src/hooks/`: `useRounds.js`, `useStudyTimer.js`, `useNow.js`
+- `src/lib/`:
+  - `rounds.js`, `goals.js`, `reminders.js`, `push.js`
+  - `share.js`, `languages.js`, `profileBackfill.js`
+- `netlify/functions/send-reminders.mjs`
+- `public/badge-96.png`
+
+**Без изменений:**
+- `src/firebase.js`, `src/hooks/useInstallPrompt.js`
+- `src/lib/`: `levenshtein.js`, `parser.js`, `celebrate.js`, `utils.js`
+
+**Новые зависимости:**
+- `react-router-dom`
+- `firebase-admin` (только для функции на Netlify)
+- `@fontsource-variable/roboto-flex`, `@fontsource-variable/roboto-mono`
+- `workbox-precaching`, `workbox-routing`, `workbox-core`
+
+**Удалены:** шрифты Bricolage, Atkinson и JetBrains Mono.
 
 ---
 
-## 3. Run it locally
+## Настройка
 
-You need **Node.js 20.19+ (22 LTS recommended)** and Git.
+### 1. Firebase (если проект уже есть — пункты 1.3–1.5)
+
+1. Firebase Console → проект → веб-приложение. Скопируйте `firebaseConfig` в `.env.local` (шаблон в `.env.example`).
+2. Authentication → Sign-in method → включите **Google** и **Anonymous**.
+3. **Firestore → Rules:** вставьте `firestore.rules` → **Publish**. Это обязательно, старые правила не подходят к новой схеме.
+4. **Cloud Messaging** (для пушей):
+   - Project settings → Cloud Messaging → Web Push certificates → **Generate key pair**;
+   - публичный ключ → `VITE_FIREBASE_VAPID_KEY`.
+5. **Service account** (для функции напоминаний):
+   - Project settings → Service accounts → **Generate new private key**;
+   - из JSON понадобятся `client_email` и `private_key`.
+
+### 2. Локальный запуск
 
 ```bash
-cd kartoteka
 npm install
-cp .env.example .env.local        # Windows: copy .env.example .env.local
-# open .env.local and paste the six values from firebaseConfig
-npm run dev                       # → http://localhost:5173
+npm run dev          # http://localhost:5173
+npm test             # юнит-тесты: Лейтнер, Левенштейн, раунды, стрик, напоминания, миграция
+npm run build && npm run preview   # проверка PWA / service worker
 ```
 
-`localhost` is an authorized sign-in domain by default, so Google sign-in works right away.
+### 3. Netlify
 
-To test the real PWA (service worker, offline mode, install prompt), use a production build:
+Site configuration → Environment variables:
 
-```bash
-npm run build && npm run preview  # → http://localhost:4173
-npm test                          # unit tests for the core logic
-```
+| Переменная | Scope | Откуда |
+|---|---|---|
+| `VITE_FIREBASE_API_KEY`, `…_AUTH_DOMAIN`, `…_PROJECT_ID`, `…_STORAGE_BUCKET`, `…_MESSAGING_SENDER_ID`, `…_APP_ID` | Builds | firebaseConfig |
+| `VITE_FIREBASE_VAPID_KEY` | Builds | шаг 1.4 |
+| `FIREBASE_PROJECT_ID` | Functions | id проекта |
+| `FIREBASE_CLIENT_EMAIL` | Functions | шаг 1.5 |
+| `FIREBASE_PRIVATE_KEY` | Functions | шаг 1.5, вставить целиком вместе с `-----BEGIN…` |
 
----
+Ставьте scope правильно: у функций AWS общий лимит на переменные окружения — 4 КБ.
 
-## 4. Deploy to Netlify (free)
+Дальше:
 
-### Option A: from GitHub (recommended, deploys automatically on every push)
+1. `git push` → Netlify соберёт сайт сам.
+2. Функция `send-reminders` запускается каждый час: в `netlify.toml` задан каталог, в самой функции — `export const config = { schedule: … }`.
+3. Проверить вручную: Netlify → Logs → Functions → send-reminders → **Run now**.
+4. Firebase → Authentication → Settings → **Authorized domains** → добавьте домен Netlify.
 
-```bash
-git init
-git add .
-git commit -m "Kartoteka PWA"
-# create an empty repo on github.com named "kartoteka", then:
-git remote add origin https://github.com/<your-username>/kartoteka.git
-git branch -M main
-git push -u origin main
-```
+### 4. Пуш-уведомления: как это работает
 
-1. Sign in at <https://app.netlify.com> (you can use your GitHub account) → **Add new project → Import an existing project → GitHub** → choose `kartoteka`.
-2. The build settings are read from `netlify.toml` (`npm run build`, publish folder `dist`, Node 22). Leave them as they are.
-3. Under **Environment variables**, add the six `VITE_FIREBASE_*` variables with the same values as in your `.env.local`.
-4. Click **Deploy**. After about a minute you get a URL like `https://kartoteka-abc123.netlify.app`. You can rename it under *Site configuration → Change site name*.
+1. Профиль → «Напоминания» → включить. Приложение вызывает `Notification.requestPermission()`, получает FCM-токен для нашего service worker и сохраняет его в `users/{uid}.fcmTokens`.
+2. Приложение сохраняет часовой пояс и часы напоминаний: 20:00, или 9:00 и 20:00. Они пересчитываются в UTC (`settings.notify.utcHours`).
+3. Раз в час функция выбирает пользователей с текущим UTC-часом. Пуш уходит только тем, у кого **не выполнена цель дня**, и не чаще одного раза за слот. Текст выбирается по ситуации, из списка `PUSH_MESSAGES`:
 
-### Option B: Netlify CLI (no GitHub)
-
-```bash
-npm install -g netlify-cli
-netlify login
-netlify init                      # "Create & configure a new project"
-netlify env:set VITE_FIREBASE_API_KEY "..."      # repeat for all six variables
-netlify deploy --build --prod
-```
-
-### Then, in Firebase
-
-**Authentication → Settings → Authorized domains → Add domain** → `kartoteka-abc123.netlify.app` (plus any custom domain). Without this, Google sign-in fails with `auth/unauthorized-domain`.
-
-### Changing environment variables later
-
-Vite bakes the variables into the build, so after changing them in Netlify, run **Deploys → Trigger deploy → Clear cache and deploy site**.
-
----
-
-## 5. Install on your phone
-
-- **iPhone / iPad:** open the site in **Safari** → **Share** → **Add to Home Screen** → Add. The app also shows these instructions in a banner.
-- **Android:** open it in Chrome → tap the **Install** button in the app's banner, or ⋮ → **Install app**.
-- **Desktop Chrome / Edge:** use the install icon in the address bar, or account menu → *Install app*.
-
-On iOS the installed app has its own storage, separate from Safari, so you sign in once more inside it. Your decks come from the cloud.
-
-### Making Google sign-in reliable on iPhone (optional, recommended)
-
-Safari blocks the third-party storage that Firebase's default sign-in redirect relies on. The fix is to serve Firebase's auth handler from your own domain:
-
-1. In `netlify.toml`, uncomment the `/__/auth/*` redirect block and replace `YOUR-PROJECT-ID`.
-2. In Netlify, set `VITE_FIREBASE_AUTH_DOMAIN` to your Netlify domain (e.g. `kartoteka-abc123.netlify.app`).
-3. Go to Google Cloud Console → APIs & Services → Credentials → *Web client (auto created by Google Service)* → **Authorized redirect URIs**, and add `https://kartoteka-abc123.netlify.app/__/auth/handler`.
-4. Redeploy.
-
-Guest mode works everywhere without this step.
-
----
-
-## 6. Customising
-
-| What | Where |
+| Ситуация | Сообщение |
 |---|---|
-| Box intervals (1/2/4/8 days), what "almost" does | `src/lib/leitner.js` → `BOX_INTERVAL_DAYS`, `PARTIAL_CREDIT_POLICY` |
-| How many typos count as "almost", ignore accents | `src/lib/levenshtein.js` → `typoTolerance()`, `IGNORE_ACCENTS` |
-| Import separators | `src/lib/parser.js` → `PRIMARY_SEPARATORS` |
-| Colours, fonts, dark theme | `src/index.css` (tokens at the top) + `vite.config.js` `BRAND` |
-| Cards per deck limit | `src/lib/model.js` → `MAX_CARDS_PER_DECK` (keep in sync with `firestore.rules`) |
-| Swipe sensitivity | `src/components/study/FlashcardMode.jsx` → `SWIPE_THRESHOLD` |
-| App icons | replace the PNGs in `public/` (same names and sizes) |
+| Серия под угрозой | «…спасать огонёк 🔥» |
+| Уже начали сегодня | «…добей сегодняшний раунд 🎯» |
+| Не заходили 2+ дня | «Эй, мы скучаем!» |
+| Вечер | «До конца дня еще 4 часа…» |
+
+На iPhone пуши работают только в установленном приложении («На экран Домой»), начиная с iOS 16.4.
 
 ---
 
-## 7. Troubleshooting
+## Настройка под себя
 
-| Symptom | Fix |
+| Что | Где |
 |---|---|
-| "Connect Firebase" screen | The `VITE_FIREBASE_*` variables are missing. Add them, then redeploy with *Clear cache and deploy*. |
-| `auth/unauthorized-domain` | Add the domain in Firebase → Authentication → Settings → Authorized domains. |
-| `auth/operation-not-allowed` | Enable Google and Anonymous under Authentication → Sign-in method. |
-| "The database refused access" | Publish `firestore.rules` (step 2.5). |
-| Netlify build fails with "secrets scanning" | Firebase web keys are public by design. `netlify.toml` already sets `SECRETS_SCAN_OMIT_KEYS`. If smart detection still flags the API key, add the env var `SECRETS_SCAN_SMART_DETECTION_OMIT_VALUES` set to your API key value. |
-| Refreshing a page gives a 404 | Make sure `netlify.toml` is in the repo root (it has the SPA redirect). |
-| Phone still shows an old version | The app shows "A new version is ready → Reload". Closing and reopening the installed app also updates it. |
-| Guest decks vanished after sign-out | Guest accounts can't be recovered. Use *Save to a Google account* or *Export data* before signing out (the app warns you). |
+| Интервалы коробок, что значит «почти» | `src/lib/leitner.js` |
+| Сколько опечаток считается «почти» | `src/lib/levenshtein.js` → `typoTolerance` |
+| Размеры раунда, фразы похвалы | `src/lib/rounds.js` |
+| Варианты цели, фразы виджета | `src/lib/goals.js` |
+| Тексты пушей, часы напоминаний | `src/lib/reminders.js` |
+| Цвета, шрифты, шкала M3 | `src/index.css` (`@theme`) |
+| Список языков озвучки | `src/lib/languages.js` |
 
-### Free-tier notes
+## Ограничения, о которых стоит знать
 
-Firebase's free Spark plan includes a daily Firestore quota (about 50,000 reads and 20,000 writes per day at the time of writing). Each rated card is one write, plus one for the daily streak counter, which is far more than one person studies. Netlify's free plan easily covers a personal static app.
+- **Пароль набора проверяется правилами Firestore без сервера.** Клиент присылает SHA-256 от `deckId:пароль`, правило сравнивает его с хэшем в `deckSecrets`. Это надёжно против случайного доступа, но не защищает от перебора простых паролей. Смена пароля сразу отзывает все выданные доступы.
+- **Конфликты при одновременной правке.** Если два человека одновременно редактируют один набор, сохранится последняя запись. На прогресс это не влияет: он у каждого свой.
+- **«Добавить в класс»** пока заглушка.

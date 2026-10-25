@@ -19,11 +19,11 @@ export const BOXES = [1, 2, 3, 4, 5];
 export const BOX_INTERVAL_DAYS = { 1: 1, 2: 2, 3: 4, 4: 8, 5: null };
 
 export const BOX_LABEL = {
-  1: "daily",
-  2: "2 days",
-  3: "4 days",
-  4: "8 days",
-  5: "mastered",
+  1: "каждый день",
+  2: "раз в 2 дня",
+  3: "раз в 4 дня",
+  4: "раз в 8 дней",
+  5: "выучено",
 };
 
 /**
@@ -38,6 +38,19 @@ export function nextBox(box, grade) {
   if (grade === "again") return 1;
   // "almost"
   return PARTIAL_CREDIT_POLICY === "down" ? Math.max(1, box - 1) : box;
+}
+
+/**
+ * New progress record after a grade, or null when nothing should change.
+ *   goal "memorize" → normal Leitner.
+ *   goal "cram"     → cards are shown regardless of their schedule, so a correct answer on a card
+ *                     that isn't due yet must NOT push it further up (no skipping ahead);
+ *                     mistakes still count and send the card back to Box 1.
+ */
+export function nextProgress(card, grade, { goal = "memorize", now = Date.now() } = {}) {
+  if (goal === "cram" && grade !== "again" && !isDue(card, now)) return null;
+  const g = gradeCard(card, grade, now);
+  return { box: g.box, lastReviewed: g.lastReviewed, reviews: g.reviews, lapses: g.lapses };
 }
 
 /** Apply a grade to a card and return the updated card (immutable). */
@@ -89,18 +102,27 @@ export function isDue(card, now = Date.now()) {
   return startOfDay(now) >= startOfDay(nextDueAt(card));
 }
 
+export function plural(n, [one, few, many]) {
+  const a = Math.abs(n) % 100;
+  const b = a % 10;
+  if (a > 10 && a < 20) return many;
+  if (b > 1 && b < 5) return few;
+  if (b === 1) return one;
+  return many;
+}
+
 export function relativeDay(ts, now = Date.now()) {
   const n = daysBetween(now, ts);
-  if (n <= 0) return "today";
-  if (n === 1) return "tomorrow";
-  return `in ${n} days`;
+  if (n <= 0) return "сегодня";
+  if (n === 1) return "завтра";
+  return `через ${n} ${plural(n, ["день", "дня", "дней"])}`;
 }
 
 export function dueLabel(card, now = Date.now()) {
-  if (card.box >= 5) return "Mastered";
-  if (card.lastReviewed == null) return "New";
-  if (isDue(card, now)) return "Due today";
-  return `Due ${relativeDay(nextDueAt(card), now)}`;
+  if (card.box >= 5) return "Выучено";
+  if (card.lastReviewed == null) return "Новая";
+  if (isDue(card, now)) return "Повторить сегодня";
+  return `Повтор ${relativeDay(nextDueAt(card), now)}`;
 }
 
 /** Summary numbers for a deck: cards per box, due per box, mastery %, next review date. */
@@ -138,6 +160,17 @@ export function deckStats(deck, now = Date.now()) {
     nextDue,
     nextDueCount,
   };
+}
+
+/** Counts for the Deck screen: not studied / still learning / mastered. */
+export function progressBreakdown(cards) {
+  const out = { notStudied: 0, learning: 0, mastered: 0, total: cards.length };
+  for (const c of cards) {
+    if (c.box >= 5) out.mastered += 1;
+    else if (c.lastReviewed == null) out.notStudied += 1;
+    else out.learning += 1;
+  }
+  return out;
 }
 
 /** Consecutive days (ending today or yesterday) with at least one review. */
