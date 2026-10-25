@@ -6,7 +6,7 @@ import { parseImport } from "../src/lib/parser.js";
 import { isDue, nextBox, gradeCard, nextProgress, progressBreakdown, DAY_MS } from "../src/lib/leitner.js";
 import { normalizeDeck, normalizeFolder, normalizeCardContent, progressFromLegacyCard, withProgress } from "../src/lib/model.js";
 import { readBackup } from "../src/lib/backup.js";
-import { buildPool, summarizeRound, takeRound, toItems } from "../src/lib/rounds.js";
+import { buildPool, learningLoad, summarizeRound, takeRound, toItems } from "../src/lib/rounds.js";
 import { addDaysToKey, applyActivity, displayedStreak, goalStatus, motivationPhrase } from "../src/lib/goals.js";
 import { PUSH_MESSAGES, PUSH_MESSAGES_EN, decideReminder, localHoursToUtcHours } from "../src/lib/reminders.js";
 import { ttsCacheKey, voiceFor } from "../src/lib/tts.js";
@@ -109,6 +109,9 @@ test("rounds: memorize takes only due cards, cram takes everything, summary list
   assert.deepEqual(progressBreakdown(mixed.cards), { notStudied: 2, learning: 2, mastered: 0, total: 4 });
   const first = buildPool(toItems(mixed, mixed.cards), { goal: "memorize", newLimit: 2 }).map((i) => i.card.id);
   assert.deepEqual(first, ["m1", "m2"]);
+
+  // Intro gate load: only met/graded cards in box 1–2.
+  assert.equal(learningLoad([met("a"), card(1, 0, "b"), card(2, 1, "c"), card(3, 1, "d"), card(5, 9, "e"), card(1, null, "f")]), 3);
   const s = summarizeRound([{ item: items[0], grade: "know" }, { item: items[1], grade: "again" }, { item: items[2], grade: "almost" }]);
   assert.deepEqual([s.total, s.correct, s.almost, s.mistakes.length, s.accuracy], [3, 2, 1, 1, 67]);
 });

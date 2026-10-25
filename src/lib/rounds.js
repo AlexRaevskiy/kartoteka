@@ -28,8 +28,15 @@ export const isNewCard = (item) => item.card.lastReviewed == null;
 /** Not even seen in Intro mode yet ("Not studied" in the progress block). */
 export const isUnseenCard = (item) => isNewCard(item) && !item.card.introducedAt;
 
-/** Words in progress: met in Intro or graded, not mastered. The Intro gate counts these. */
+/**
+ * Intro gate: new words are locked while this many words are "fresh" — met in Intro or graded,
+ * and still in box 1–2 (just met, or weak). Words that moved to box 3+ no longer count.
+ */
 export const LEARNING_LIMIT = 15;
+export const LOAD_MAX_BOX = 2;
+
+/** How many cards count against the Intro gate (cards with Leitner progress). */
+export const learningLoad = (cards) => cards.filter((c) => (c.lastReviewed != null || c.introducedAt) && c.box <= LOAD_MAX_BOX).length;
 export const DEFAULT_ROUND_SIZE = 20;
 
 export const itemKey = (deckId, cardId) => `${deckId}:${cardId}`;

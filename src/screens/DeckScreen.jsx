@@ -39,7 +39,7 @@ import { useDeckResource } from "../data/useRemote.js";
 import * as store from "../data/store.js";
 import { useDialogs, useToast } from "../components/providers.jsx";
 import { Avatar, EmptyPanel, ExampleBlock, Menu, ProgressBar, Sheet, SpeakButton, TopBar } from "../components/ui.jsx";
-import { LEARNING_LIMIT, MAX_NEW_PER_SESSION } from "../lib/rounds.js";
+import { LEARNING_LIMIT, MAX_NEW_PER_SESSION, learningLoad } from "../lib/rounds.js";
 import CardCarousel from "../components/CardCarousel.jsx";
 import PasswordGate from "../components/PasswordGate.jsx";
 import { DownloadSheet, FolderPickerSheet, GoalSheet, SetInfoSheet, ShareSheet } from "../components/sheets.jsx";
@@ -124,11 +124,12 @@ function DeckView({ deck }) {
 
   const breakdown = useMemo(() => progressBreakdown(deck.cards), [deck.cards]);
 
-  // Intro gate: too many words in progress → practice them before meeting new ones.
+  // Intro gate: too many fresh words (box 1–2) → practice them before meeting new ones.
   const unseen = breakdown.notStudied;
-  const introLocked = unseen > 0 && breakdown.learning >= LEARNING_LIMIT;
+  const load = useMemo(() => learningLoad(deck.cards), [deck.cards]);
+  const introLocked = unseen > 0 && load >= LEARNING_LIMIT;
   const openIntro = () => {
-    if (introLocked) return toast(t("introGate.locked", { count: breakdown.learning }), { duration: 5000 });
+    if (introLocked) return toast(t("introGate.locked", { count: load }), { duration: 5000 });
     if (unseen > MAX_NEW_PER_SESSION) return setSheet("introPortion");
     navigate(studyPath("intro"));
   };
@@ -276,7 +277,7 @@ function DeckView({ deck }) {
               <span className="min-w-0 flex-1">
                 <span className="block text-title-sm">{t("modes.intro.label")}</span>
                 <span className="block text-body-sm opacity-80">
-                  {introLocked ? t("introGate.lockedHint", { count: breakdown.learning }) : unseen ? t("introGate.newCount", { count: unseen }) : t("modes.intro.hint")}
+                  {introLocked ? t("introGate.lockedHint", { count: load }) : unseen ? t("introGate.newCount", { count: unseen }) : t("modes.intro.hint")}
                 </span>
               </span>
               {introLocked ? null : <ChevronRight size={20} className="shrink-0 opacity-70" />}
