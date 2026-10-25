@@ -31,12 +31,15 @@ import {
   Users,
   Play,
   BookOpen,
+  Layers3,
+  ListOrdered,
 } from "lucide-react";
 import { useLibrary } from "../data/LibraryProvider.jsx";
 import { useDeckResource } from "../data/useRemote.js";
 import * as store from "../data/store.js";
 import { useDialogs, useToast } from "../components/providers.jsx";
-import { Avatar, EmptyPanel, ExampleBlock, Menu, ProgressBar, SpeakButton, TopBar } from "../components/ui.jsx";
+import { Avatar, EmptyPanel, ExampleBlock, Menu, ProgressBar, Sheet, SpeakButton, TopBar } from "../components/ui.jsx";
+import { LEARNING_LIMIT, MAX_NEW_PER_SESSION } from "../lib/rounds.js";
 import CardCarousel from "../components/CardCarousel.jsx";
 import PasswordGate from "../components/PasswordGate.jsx";
 import { DownloadSheet, FolderPickerSheet, GoalSheet, SetInfoSheet, ShareSheet } from "../components/sheets.jsx";
@@ -120,6 +123,15 @@ function DeckView({ deck }) {
   }, [starredOnly, starredCount]);
 
   const breakdown = useMemo(() => progressBreakdown(deck.cards), [deck.cards]);
+
+  // Intro gate: too many words in progress → practice them before meeting new ones.
+  const unseen = breakdown.notStudied;
+  const introLocked = unseen > 0 && breakdown.learning >= LEARNING_LIMIT;
+  const openIntro = () => {
+    if (introLocked) return toast(t("introGate.locked", { count: breakdown.learning }), { duration: 5000 });
+    if (unseen > MAX_NEW_PER_SESSION) return setSheet("introPortion");
+    navigate(studyPath("intro"));
+  };
   const terms = useMemo(() => {
     const list = [...deck.cards];
     if (sortMode === "alpha") list.sort((a, b) => a.term.localeCompare(b.term, undefined, { sensitivity: "base" }));
@@ -251,17 +263,23 @@ function DeckView({ deck }) {
             <button
               type="button"
               disabled={!deck.cards.length}
-              className="w-full rounded-2xl bg-tertiary-container text-on-tertiary-container p-4 flex items-center gap-3 text-left fc-focus disabled:opacity-40 mt-5"
-              onClick={() => navigate(studyPath("intro"))}
+              aria-disabled={introLocked || undefined}
+              className={cx(
+                "w-full rounded-2xl p-4 flex items-center gap-3 text-left fc-focus disabled:opacity-40 mt-5",
+                introLocked ? "bg-surface-container-high text-on-surface-variant" : "bg-tertiary-container text-on-tertiary-container"
+              )}
+              onClick={openIntro}
             >
               <span className="w-10 h-10 rounded-xl bg-surface-container-lowest/70 flex items-center justify-center shrink-0">
-                <BookOpen size={20} />
+                {introLocked ? <Lock size={20} /> : <BookOpen size={20} />}
               </span>
               <span className="min-w-0 flex-1">
                 <span className="block text-title-sm">{t("modes.intro.label")}</span>
-                <span className="block text-body-sm opacity-80">{t("modes.intro.hint")}</span>
+                <span className="block text-body-sm opacity-80">
+                  {introLocked ? t("introGate.lockedHint", { count: breakdown.learning }) : unseen ? t("introGate.newCount", { count: unseen }) : t("modes.intro.hint")}
+                </span>
               </span>
-              <ChevronRight size={20} className="shrink-0 opacity-70" />
+              {introLocked ? null : <ChevronRight size={20} className="shrink-0 opacity-70" />}
             </button>
 
             <div className="grid grid-cols-2 gap-3 mt-3">
@@ -384,6 +402,32 @@ function DeckView({ deck }) {
       {sheet === "share" ? <ShareSheet kind="deck" item={deck} path={`/deck/${deck.id}`} canManage={deck.own} onVisibility={changeVisibility} onClose={() => setSheet(null)} /> : null}
       {sheet === "download" ? <DownloadSheet deck={deck} onClose={() => setSheet(null)} /> : null}
       {sheet === "info" ? <SetInfoSheet deck={deck} onClose={() => setSheet(null)} /> : null}
+      {sheet === "introPortion" ? (
+        <Sheet title={t("introPortion.title")} subtitle={t("introPortion.subtitle", { count: unseen })} onClose={() => setSheet(null)} labelId="intro-portion-title">
+          {[
+            ["portion", ListOrdered, t("introPortion.portion", { count: MAX_NEW_PER_SESSION }), t("introPortion.portionHint")],
+            ["all", Layers3, t("introPortion.all", { count: unseen }), t("introPortion.allHint")],
+          ].map(([value, Icon, title, hint]) => (
+            <button
+              key={value}
+              type="button"
+              className="text-left rounded-2xl p-4 flex gap-4 border-2 border-outline-variant hover:border-primary fc-focus"
+              onClick={() => {
+                setSheet(null);
+                navigate(studyPath("intro") + (value === "all" ? "&portion=all" : ""));
+              }}
+            >
+              <span className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0 bg-surface-container-highest text-on-surface-variant">
+                <Icon size={22} />
+              </span>
+              <span className="min-w-0">
+                <span className="block text-title-md">{title}</span>
+                <span className="block text-body-md text-on-surface-variant mt-1">{hint}</span>
+              </span>
+            </button>
+          ))}
+        </Sheet>
+      ) : null}
       {sheet === "goal" ? (
         <GoalSheet
           starredOnly={starredOnly}

@@ -102,6 +102,13 @@ test("rounds: memorize takes only due cards, cram takes everything, summary list
   assert.equal(buildPool(bigItems, { goal: "cram", newLimit: 0 }).length, 1); // portion used up
   const studied = toItems(big, [card(2, 2, "a"), card(5, 9, "b")]);
   assert.equal(buildPool(studied, { goal: "cram", newLimit: 15 }).length, 2); // no new left → whole deck
+
+  // Intro mode: met words count as "still learning", stay due, and are taken first.
+  const met = (id) => ({ ...card(1, null, id), introducedAt: NOW });
+  const mixed = { id: "m", cards: [card(1, null, "u1"), card(1, null, "u2"), met("m1"), met("m2")] };
+  assert.deepEqual(progressBreakdown(mixed.cards), { notStudied: 2, learning: 2, mastered: 0, total: 4 });
+  const first = buildPool(toItems(mixed, mixed.cards), { goal: "memorize", newLimit: 2 }).map((i) => i.card.id);
+  assert.deepEqual(first, ["m1", "m2"]);
   const s = summarizeRound([{ item: items[0], grade: "know" }, { item: items[1], grade: "again" }, { item: items[2], grade: "almost" }]);
   assert.deepEqual([s.total, s.correct, s.almost, s.mistakes.length, s.accuracy], [3, 2, 1, 1, 67]);
 });

@@ -271,6 +271,16 @@ export function LibraryProvider({ user, onError, children }) {
         return { before: card, after };
       },
 
+      /** Intro mode portion seen: items = [{ deck, card }] → those cards become "still learning". */
+      markIntroduced(items) {
+        const byDeck = new Map();
+        for (const { deck, card } of items) {
+          if (!byDeck.has(deck.id)) byDeck.set(deck.id, { deck, ids: [] });
+          byDeck.get(deck.id).ids.push(card.id);
+        }
+        return Promise.all([...byDeck.values()].map(({ deck, ids }) => store.markIntroduced(uid, deck, ids).catch(report)));
+      },
+
       toggleStar(deck, cardId) {
         const on = !deck.starred?.has(cardId);
         store.setStar(uid, deck, cardId, on).catch(report);

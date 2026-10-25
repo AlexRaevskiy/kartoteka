@@ -6,9 +6,13 @@
  *   - Next / Back buttons, ← / → keys or a horizontal swipe. Space replays the card.
  *   - Auto-play on every new card: word (on by default), translation, example — the gear opens
  *     the toggles (saved in the profile: settings.introAudio).
- *   - The cards: the next portion of new cards (MAX_NEW_PER_SESSION, the same ones the next
- *     study session takes); if every card was studied already — the whole deck.
- *   - The end screen links to Flashcards / Test / Write or back to the deck.
+ *   - The cards: words not met yet — a portion of MAX_NEW_PER_SESSION, or all of them with
+ *     ?portion=all (chosen on the deck page). If every word was met already — the whole deck,
+ *     as a review that changes nothing.
+ *   - Reaching the end marks the portion as met (introducedAt): the words become "still
+ *     learning", stay due today, and the next study session takes them first — so the end
+ *     screen's Flashcards / Test / Write buttons practice exactly this portion.
+ *   - With ?portion=all and words still unseen (e.g. added meanwhile): "Continue intro".
  *
  * iOS starts audio only from a tap, so playback starts synchronously inside the Next / Back /
  * swipe handlers. The very first card has no tap: if iOS refuses, a "Tap to listen" hint appears.
@@ -16,12 +20,12 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { ArrowLeft, ArrowRight, Layers, ListChecks, PenLine, Play, Settings, Sparkles, X } from "lucide-react";
+import { ArrowLeft, ArrowRight, BookOpen, Layers, ListChecks, PenLine, Play, Settings, Sparkles, X } from "lucide-react";
 import { useLibrary } from "../../data/LibraryProvider.jsx";
 import { useToast } from "../providers.jsx";
 import { ExampleBlock, ProgressBar, Sheet, SpeakButton, Switch } from "../ui.jsx";
 import SEO from "../SEO.jsx";
-import { MAX_NEW_PER_SESSION, isNewCard } from "../../lib/rounds.js";
+import { MAX_NEW_PER_SESSION, isUnseenCard } from "../../lib/rounds.js";
 import { speechLang } from "../../lib/languages.js";
 import { speak, speakSequence, stopSpeech } from "../../lib/speech.js";
 import { cx, isTypingTarget } from "../../lib/utils.js";
@@ -44,16 +48,19 @@ export default function IntroSession({ items, source, backPath }) {
   const lib = useLibrary();
   const toast = useToast();
   const navigate = useNavigate();
-  const [, setParams] = useSearchParams();
+  const [params, setParams] = useSearchParams();
+  const showAll = params.get("portion") === "all";
   const audio = { ...DEFAULT_AUDIO, ...(lib.settings.introAudio || {}) };
   const audioRef = useRef(audio);
   audioRef.current = audio;
 
-  // Fixed for the whole session (progress snapshots must not reshuffle the list).
-  const [cards] = useState(() => {
-    const fresh = items.filter(isNewCard).slice(0, MAX_NEW_PER_SESSION);
-    return fresh.length ? fresh : items;
-  });
+  // Fixed for the session (progress snapshots must not reshuffle the list).
+  const pickCards = (list, exclude = new Set()) => {
+    const unseen = list.filter((i) => isUnseenCard(i) && !exclude.has(i.key));
+    return unseen.length ? { list: showAll ? unseen : unseen.slice(0, MAX_NEW_PER_SESSION), introducing: true } : { list, introducing: false };
+  };
+  const [{ list: cards, introducing }, setBatch] = useState(() => pickCards(items));
+  const shown = useRef(new Set());
   const [index, setIndex] = useState(0);
   const [done, setDone] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -88,14 +95,34 @@ export default function IntroSession({ items, source, backPath }) {
       if (next >= cards.length) {
         stopSpeech();
         setDone(true);
+        if (introducing) {
+          cards.forEach((i) => shown.current.add(i.key));
+          lib.actions.markIntroduced(cards); // → "still learning", first in the next study session
+        }
         return;
       }
       setNeedsTap(false);
       setIndex(next);
       play(next);
     },
-    [cards.length, play]
+    [cards, introducing, play, lib.actions]
   );
+
+  // "Show all" flow: words still unseen (not in this batch) → keep meeting them.
+  const remaining = showAll && introducing ? items.filter((i) => isUnseenCard(i) && !shown.current.has(i.key)).length : 0;
+  const continueIntro = () => {
+    const nextBatch = pickCards(items, shown.current);
+    if (!nextBatch.introducing) return;
+    setBatch(nextBatch);
+    setDone(false);
+    setIndex(0);
+    setNeedsTap(false);
+    const first = nextBatch.list[0];
+    if (first) {
+      const seq = sequenceFor(first, audioRef.current);
+      if (seq.length) speakSequence(seq).then((r) => r.blocked && setNeedsTap(true));
+    }
+  };
 
   useEffect(() => {
     if (done || settingsOpen) return undefined;
@@ -114,11 +141,18 @@ export default function IntroSession({ items, source, backPath }) {
   }, [done, settingsOpen, go, index, play]);
 
   const exit = () => navigate(backPath, { replace: true });
-  const toMode = (mode) => setParams((p) => {
-    const next = new URLSearchParams(p);
-    next.set("mode", mode);
-    return next;
-  }, { replace: true });
+  // Practice right away: Leitner order puts the words just met first (introducedAt).
+  const toMode = (mode) =>
+    setParams(
+      (p) => {
+        const next = new URLSearchParams(p);
+        next.set("mode", mode);
+        next.set("goal", "memorize");
+        next.delete("portion");
+        return next;
+      },
+      { replace: true }
+    );
   const onSpeak = (text, lang) =>
     speak(text, lang).then((r) => {
       if (r.message) toast(r.message, { duration: 5000 });
@@ -181,7 +215,11 @@ export default function IntroSession({ items, source, backPath }) {
               <h1 id="intro-done" className="text-headline-sm text-balance">
                 {t("intro.doneTitle")}
               </h1>
-              <p className="text-body-lg text-on-surface-variant">{t("intro.doneBody", { count: total })}</p>
+              {introducing ? (
+                <p className="text-body-lg rounded-2xl bg-primary-container text-on-primary-container px-4 py-3">{t("intro.addedToLearning", { count: total })}</p>
+              ) : (
+                <p className="text-body-lg text-on-surface-variant">{t("intro.doneBody", { count: total })}</p>
+              )}
               <div className="grid gap-3 w-full mt-2">
                 {[
                   ["flashcards", Layers],
@@ -193,7 +231,12 @@ export default function IntroSession({ items, source, backPath }) {
                     <span className="ml-auto text-body-sm opacity-70">{t(`modes.${mode}.hint`)}</span>
                   </button>
                 ))}
-                <button type="button" className="fc-btn fc-btn-outlined fc-btn-lg w-full" onClick={exit}>
+                {remaining > 0 ? (
+                  <button type="button" className="fc-btn fc-btn-outlined fc-btn-lg w-full" onClick={continueIntro}>
+                    <BookOpen size={20} /> {t("intro.continueIntro", { count: remaining })}
+                  </button>
+                ) : null}
+                <button type="button" className="fc-btn fc-btn-text fc-btn-lg w-full" onClick={exit}>
                   {t("intro.backToDeck")}
                 </button>
               </div>

@@ -61,7 +61,7 @@ export const DEFAULT_SETTINGS = {
   introAudio: { term: true, definition: false, example: false }, // Intro mode: what plays on each card
 };
 
-export const EMPTY_PROGRESS = { box: 1, lastReviewed: null, reviews: 0, lapses: 0 };
+export const EMPTY_PROGRESS = { box: 1, lastReviewed: null, reviews: 0, lapses: 0, introducedAt: null };
 
 export const uid = () =>
   (globalThis.crypto?.randomUUID?.() ?? `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 12)}`)
@@ -104,6 +104,8 @@ export function normalizeProgress(p) {
     lastReviewed: typeof p.lastReviewed === "number" ? p.lastReviewed : null,
     reviews: Number(p.reviews) || 0,
     lapses: Number(p.lapses) || 0,
+    // Seen in Intro mode: counts as "still learning", but stays due today for Leitner.
+    introducedAt: typeof p.introducedAt === "number" ? p.introducedAt : null,
   };
 }
 
@@ -115,7 +117,7 @@ export function withProgress(cards, progressMap) {
 /** "new" | "learning" | "mastered" — the three buckets of the Deck screen's progress block. */
 export function progressCategory(card) {
   if (card.box >= 5) return "mastered";
-  if (card.lastReviewed == null) return "new";
+  if (card.lastReviewed == null && !card.introducedAt) return "new";
   return "learning";
 }
 

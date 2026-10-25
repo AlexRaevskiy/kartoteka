@@ -763,6 +763,23 @@
     "doneTitle": "Awesome, you've met the words. Ready to study?",
     "doneBody_one": "{{count}} word is ready for practice.",
     "doneBody_other": "{{count}} words are ready for practice.",
-    "backToDeck": "Back to deck"
+    "backToDeck": "Back to deck",
+    "addedToLearning_one": "{{count}} word added to your learning list. Let's practice it!",
+    "addedToLearning_other": "{{count}} words added to your learning list. Let's practice them!",
+    "continueIntro": "Continue intro ({{count}})"
+  },
+  "introGate": {
+    "locked": "Please practice the started words first: {{count}} are in progress.",
+    "lockedHint": "{{count}} words in progress — practice them first",
+    "newCount_one": "{{count}} new word to meet",
+    "newCount_other": "{{count}} new words to meet"
+  },
+  "introPortion": {
+    "title": "How do you want to meet the words?",
+    "subtitle": "New words in this set: {{count}}",
+    "portion": "In portions of {{count}}",
+    "portionHint": "Recommended: a small portion, then practice right away — words stick better.",
+    "all": "View all ({{count}})",
+    "allHint": "Browse the whole set at once. Studying still happens in portions."
   }
 }

@@ -151,6 +151,14 @@ const libMeta = (deck) => ({ ownerId: deck.ownerId || null, title: deck.title ||
 export const setCardProgress = (uid, deck, cardId, progress, now = Date.now()) =>
   setDoc(refs.libEntry(uid, deck.id), { ...libMeta(deck), lastStudiedAt: now, progress: { [cardId]: progress } }, { merge: true });
 
+/** Intro mode finished: these cards now count as "still learning" (merge keeps their Leitner fields). */
+export const markIntroduced = (uid, deck, cardIds, now = Date.now()) =>
+  setDoc(
+    refs.libEntry(uid, deck.id),
+    { ...libMeta(deck), lastStudiedAt: now, progress: Object.fromEntries(cardIds.map((id) => [id, { introducedAt: now }])) },
+    { merge: true }
+  );
+
 export const setStar = (uid, deck, cardId, on) =>
   setDoc(refs.libEntry(uid, deck.id), { ...libMeta(deck), starred: on ? arrayUnion(cardId) : arrayRemove(cardId) }, { merge: true });
 

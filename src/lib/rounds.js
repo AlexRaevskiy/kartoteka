@@ -22,7 +22,14 @@ export const ROUND_SIZES = [10, 20, 30];
  */
 export const MAX_NEW_PER_SESSION = 15;
 
+/** Never graded (Leitner "new"). Cards met in Intro mode are still new here — and come first. */
 export const isNewCard = (item) => item.card.lastReviewed == null;
+
+/** Not even seen in Intro mode yet ("Not studied" in the progress block). */
+export const isUnseenCard = (item) => isNewCard(item) && !item.card.introducedAt;
+
+/** Words in progress: met in Intro or graded, not mastered. The Intro gate counts these. */
+export const LEARNING_LIMIT = 15;
 export const DEFAULT_ROUND_SIZE = 20;
 
 export const itemKey = (deckId, cardId) => `${deckId}:${cardId}`;
@@ -44,7 +51,14 @@ export function toItems(deck, cards) {
  */
 export function buildPool(items, { goal = "memorize", now = Date.now(), exclude = new Set(), newLimit = Infinity } = {}) {
   const available = items.filter((i) => !exclude.has(i.key));
-  const freshPortion = (list) => list.filter(isNewCard).slice(0, Math.max(0, newLimit));
+  // New cards in deck order, the ones already met in Intro first (they were the last portion).
+  const freshPortion = (list) =>
+    list
+      .filter(isNewCard)
+      .map((item, order) => ({ item, order }))
+      .sort((a, b) => (b.item.card.introducedAt ? 1 : 0) - (a.item.card.introducedAt ? 1 : 0) || a.order - b.order)
+      .map((x) => x.item)
+      .slice(0, Math.max(0, newLimit));
   if (goal === "cram") {
     if (Number.isFinite(newLimit) && items.some(isNewCard)) {
       const learning = shuffle(available.filter((i) => !isNewCard(i) && i.card.box < 5)).sort((a, b) => a.card.box - b.card.box);

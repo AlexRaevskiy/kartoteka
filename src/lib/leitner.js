@@ -145,7 +145,7 @@ export function progressBreakdown(cards) {
   const out = { notStudied: 0, learning: 0, mastered: 0, total: cards.length };
   for (const c of cards) {
     if (c.box >= 5) out.mastered += 1;
-    else if (c.lastReviewed == null) out.notStudied += 1;
+    else if (c.lastReviewed == null && !c.introducedAt) out.notStudied += 1; // introduced in Intro mode = learning
     else out.learning += 1;
   }
   return out;
