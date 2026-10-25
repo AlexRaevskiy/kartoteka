@@ -181,10 +181,10 @@ function Session({ items, source, backPath, opts }) {
     }, { replace: true });
 
   const onSpeak = useCallback(
-    (text, lang) => {
-      const r = speak(text, lang);
-      if (r.message) toast(r.message, { duration: 5000 });
-    },
+    (text, lang) =>
+      speak(text, lang).then((r) => {
+        if (r.message) toast(r.message, { duration: 5000 });
+      }),
     [toast]
   );
 

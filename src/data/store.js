@@ -37,6 +37,7 @@ export const refs = {
   secret: (id) => doc(db, "deckSecrets", id),
   grant: (deckId, uid) => doc(db, "decks", deckId, "grants", uid),
   folder: (id) => doc(db, "folders", id),
+  audio: (id) => doc(db, "audio_cache", id),
 };
 
 /** New random document id, generated offline. */
@@ -75,6 +76,12 @@ export const subscribeDeck = (id, cb, onError) =>
 
 export const subscribeFolder = (id, cb, onError) =>
   onSnapshot(refs.folder(id), (s) => cb(s.exists() ? normalizeFolder(s.id, s.data()) : null), onError);
+
+/** Cached pronunciation (written only by netlify/functions/tts.js). Base64 MP3 or null. */
+export async function getCachedAudio(id) {
+  const s = await getDoc(refs.audio(id));
+  return s.exists() ? s.data().audioBase64 || null : null;
+}
 
 export async function getStub(id) {
   const s = await getDoc(refs.stub(id));

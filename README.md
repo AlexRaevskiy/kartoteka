@@ -164,7 +164,22 @@ Site configuration → Environment variables:
 3. Проверить вручную: Netlify → Logs → Functions → send-reminders → **Run now**.
 4. Firebase → Authentication → Settings → **Authorized domains** → добавьте домен Netlify.
 
-### 4. Пуш-уведомления: как это работает
+### 4. Облачная озвучка (Azure Speech)
+
+На iPhone нет системного грузинского голоса, поэтому кнопка 🔊 берёт звук из облака:
+
+1. `src/lib/speech.js` → `src/data/tts.js`: сначала память, потом Firestore `audio_cache/{sha256}`, потом `POST /api/tts`.
+2. `netlify/functions/tts.js` проверяет Firebase ID-токен, синтезирует MP3 через Azure (голос на каждый язык — `src/lib/tts.js`) и сохраняет его в `audio_cache` через Admin SDK. Каждое слово синтезируется один раз для всех.
+3. Если облако недоступно (нет ключа, офлайн и слово ещё не звучало) — используется системный голос.
+
+Настройка:
+
+1. [Azure portal](https://portal.azure.com) → Create a resource → **Speech** → тариф Free F0 (500 000 символов нейронных голосов в месяц).
+2. Keys and Endpoint → `KEY 1` и `Location/Region`.
+3. Netlify → Environment variables (scope **Functions**): `AZURE_SPEECH_KEY`, `AZURE_SPEECH_REGION`. Для кэша нужны и `FIREBASE_CLIENT_EMAIL` / `FIREBASE_PRIVATE_KEY` (как для напоминаний); без них озвучка работает, но не кэшируется.
+4. Опубликуйте обновлённый `firestore.rules` (правило для `audio_cache`).
+
+### 5. Пуш-уведомления: как это работает
 
 1. Профиль → «Напоминания» → включить. Приложение вызывает `Notification.requestPermission()`, получает FCM-токен для нашего service worker и сохраняет его в `users/{uid}.fcmTokens`.
 2. Приложение сохраняет часовой пояс и часы напоминаний: 20:00, или 9:00 и 20:00. Они пересчитываются в UTC (`settings.notify.utcHours`).

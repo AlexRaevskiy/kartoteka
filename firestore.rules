@@ -112,6 +112,14 @@ service cloud.firestore {
       allow delete: if signedIn() && resource.data.ownerId == request.auth.uid;
     }
 
+    // ── Pronunciation cache ─────────────────────────────────────────────────
+    // Filled only by netlify/functions/tts.js (Admin SDK bypasses rules). Clients just read,
+    // so nobody can replace the audio other users hear for a word.
+    match /audio_cache/{id} {
+      allow get: if signedIn();
+      allow list, write: if false;
+    }
+
     // ── Per-user data ───────────────────────────────────────────────────────
     match /users/{uid} {
       allow read, write: if isUser(uid);

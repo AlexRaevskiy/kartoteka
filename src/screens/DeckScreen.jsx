@@ -123,10 +123,10 @@ function DeckView({ deck }) {
 
   const inFolders = lib.folders.some((f) => f.deckIds.includes(deck.id));
   const studyPath = (mode, goal = "memorize") => `/deck/${deck.id}/study?mode=${mode}&goal=${goal}${starredOnly ? "&starred=1" : ""}`;
-  const onSpeak = (text, lang) => {
-    const r = speak(text, lang);
-    if (r.message) toast(r.message, { duration: 5000 });
-  };
+  const onSpeak = (text, lang) =>
+    speak(text, lang).then((r) => {
+      if (r.message) toast(r.message, { duration: 5000 });
+    });
 
   const changeVisibility = async (visibility) => {
     try {

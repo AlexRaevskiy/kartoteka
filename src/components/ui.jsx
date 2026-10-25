@@ -12,22 +12,38 @@ export function Spinner({ size = 18, className }) {
   return <Loader2 size={size} className={cx("fc-spin", className)} aria-hidden="true" />;
 }
 
-/** "Gramophone" button: reads the text aloud with the deck's language. */
+/**
+ * "Gramophone" button: reads the text aloud with the deck's language.
+ * While the cloud audio loads (onSpeak returns a promise) it shows a spinner.
+ */
 export function SpeakButton({ text, lang, onSpeak, className, size = 20 }) {
+  const [loading, setLoading] = useState(false);
+  const mounted = useRef(true);
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
   return (
     <button
       type="button"
       className={cx("fc-btn fc-icon-btn", className)}
       aria-label={`Озвучить: ${text}`}
+      aria-busy={loading || undefined}
       title="Озвучить"
       onPointerDown={(e) => e.stopPropagation()}
       onClick={(e) => {
         e.stopPropagation();
-        onSpeak(text, lang);
+        const pending = onSpeak(text, lang); // called synchronously: iOS needs the tap to start audio
+        if (pending?.finally) {
+          setLoading(true);
+          pending.finally(() => mounted.current && setLoading(false));
+        }
       }}
       onKeyDown={(e) => e.stopPropagation()}
     >
-      <Volume2 size={size} />
+      {loading ? <Spinner size={size} /> : <Volume2 size={size} />}
     </button>
   );
 }
