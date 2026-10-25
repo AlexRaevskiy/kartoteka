@@ -1,10 +1,17 @@
 /**
  * Authentication hook: Google sign-in + anonymous "guest" mode.
  *
- * - Desktop / browser tab:  Google via popup (falls back to redirect if popups are blocked).
- * - Installed PWA (iOS/Android home-screen app): Google via redirect, because popups are
- *   unreliable in standalone mode. See netlify.toml for the optional auth-domain proxy that
- *   makes redirects reliable on Safari.
+ * - Google: popup everywhere, including the installed PWA. On iOS a redirect leaves the app's
+ *   scope (firebaseapp.com → Google), so it opens in Safari, and Safari's third-party storage
+ *   blocking makes getRedirectResult() come back empty → the user lands on the sign-in screen
+ *   again. A popup stays attached to the app and reports back to it.
+ *   The popup must be opened synchronously inside the click handler — no `await` before
+ *   signInWithPopup(), or iOS treats it as an unsolicited popup and blocks it.
+ * - Redirect is only a fallback when the popup is blocked, and only where it can come back:
+ *   in a regular browser tab, or when the auth domain is proxied through our own domain
+ *   (netlify.toml → /__/auth/*).
+ * - Persistence is set once in src/firebase.js (initializeAuth: IndexedDB, then localStorage),
+ *   so the session survives PWA restarts without calling setPersistence() before each sign-in.
  * - Guest: anonymous account, data still syncs to Firestore. Guests can later "upgrade" to
  *   Google; the account is linked, so the uid and all decks are kept.
  */
@@ -34,7 +41,14 @@ export function authErrorMessage(err) {
     return "Этот способ входа выключен. Включите его в Firebase Console → Authentication → Sign-in method.";
   if (code.includes("network-request-failed")) return "Нет соединения. Проверьте интернет и попробуйте снова.";
   if (code.includes("too-many-requests")) return "Слишком много попыток. Подождите минуту.";
-  return err?.message || "Не удалось войти. Попробуйте ещё раз.";
+  if (code.includes("popup-blocked"))
+    return "Окно входа Google заблокировано. Разрешите всплывающие окна для этого сайта и нажмите «Войти через Google» ещё раз.";
+  if (code.includes("web-storage-unsupported"))
+    return "Браузер блокирует хранилище, нужное для входа. Отключите приватный режим или блокировку cookie и попробуйте снова.";
+  if (code === REDIRECT_LOST)
+    return "Вход через Google не завершился: браузер не вернул результат. Попробуйте ещё раз — окно входа откроется поверх приложения.";
+  // Unknown: show the real reason, so problems are visible instead of a silent reset.
+  return `Не удалось войти${code ? ` (${code})` : ""}. ${err?.message || "Попробуйте ещё раз."}`;
 }
 
 /** The useAuth() result, shared with every screen (Profile needs sign-out / link Google). */
@@ -42,6 +56,32 @@ export const AuthContext = createContext(null);
 export const useAuthContext = () => useContext(AuthContext);
 
 const POPUP_FALLBACK_CODES = ["auth/popup-blocked", "auth/operation-not-supported-in-this-environment"];
+
+/** Pseudo error code: we started a redirect, but the app came back without a result. */
+const REDIRECT_LOST = "app/redirect-result-lost";
+const REDIRECT_FLAG = "kartoteka.authRedirectStarted";
+
+/** Redirect can return to the app only from a browser tab, or when auth runs on our own domain. */
+function redirectCanReturn() {
+  return !isStandalone() || auth?.config?.authDomain === window.location.host;
+}
+
+function markRedirect(on) {
+  try {
+    if (on) sessionStorage.setItem(REDIRECT_FLAG, "1");
+    else sessionStorage.removeItem(REDIRECT_FLAG);
+  } catch {
+    /* storage blocked: we just can't detect a lost redirect */
+  }
+}
+
+function redirectWasStarted() {
+  try {
+    return sessionStorage.getItem(REDIRECT_FLAG) === "1";
+  } catch {
+    return false;
+  }
+}
 
 export function useAuth() {
   const [status, setStatus] = useState(firebaseConfigured ? "loading" : "unconfigured"); // loading | signedIn | signedOut | unconfigured
@@ -56,14 +96,22 @@ export function useAuth() {
   useEffect(() => {
     if (!auth) return undefined;
 
-    // Finish a redirect sign-in / link (PWA flow).
-    getRedirectResult(auth).catch((err) => {
-      if (err?.code === "auth/credential-already-in-use") {
-        setPendingMerge(GoogleAuthProvider.credentialFromError(err));
-      } else {
-        setError(authErrorMessage(err));
-      }
-    });
+    // Finish a redirect sign-in / link (fallback flow) when the app reloads after it.
+    const expectedRedirect = redirectWasStarted();
+    markRedirect(false);
+    getRedirectResult(auth)
+      .then((result) => {
+        // We sent the user to Google, but nothing came back and nobody is signed in:
+        // say so instead of silently showing the sign-in screen again.
+        if (expectedRedirect && !result && !auth.currentUser) setError(authErrorMessage({ code: REDIRECT_LOST }));
+      })
+      .catch((err) => {
+        if (err?.code === "auth/credential-already-in-use") {
+          setPendingMerge(GoogleAuthProvider.credentialFromError(err));
+        } else {
+          setError(authErrorMessage(err));
+        }
+      });
 
     return onAuthStateChanged(auth, (u) => {
       setUser(u);
@@ -87,12 +135,15 @@ export function useAuth() {
 
   const signInWithGoogle = useCallback(
     () =>
+      // run() calls this synchronously, so signInWithPopup() opens within the user's tap.
       run(async () => {
-        if (isStandalone()) return signInWithRedirect(auth, googleProvider);
         try {
           return await signInWithPopup(auth, googleProvider);
         } catch (err) {
-          if (POPUP_FALLBACK_CODES.includes(err?.code)) return signInWithRedirect(auth, googleProvider);
+          if (POPUP_FALLBACK_CODES.includes(err?.code) && redirectCanReturn()) {
+            markRedirect(true);
+            return signInWithRedirect(auth, googleProvider);
+          }
           throw err;
         }
       }),
@@ -110,11 +161,15 @@ export function useAuth() {
     setError(null);
     setBusy(true);
     try {
-      if (isStandalone()) {
+      try {
+        // Popup first, opened within the tap (see the note at the top of the file).
+        await linkWithPopup(auth.currentUser, googleProvider);
+      } catch (err) {
+        if (!(POPUP_FALLBACK_CODES.includes(err?.code) && redirectCanReturn())) throw err;
+        markRedirect(true);
         await linkWithRedirect(auth.currentUser, googleProvider);
         return { redirecting: true };
       }
-      await linkWithPopup(auth.currentUser, googleProvider);
       await auth.currentUser.reload();
       setUser(auth.currentUser);
       setVersion((v) => v + 1); // isAnonymous is now false
