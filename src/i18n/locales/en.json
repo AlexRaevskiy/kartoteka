@@ -97,5 +97,10 @@
     "Knowledge is power ⚡️",
     "Nailed it!",
     "Keep pushing forward!"
-  ]
+  ],
+  "pwa": {
+    "iosHint": "Install Kartoteka to your Home Screen for offline access and reminders. Tap the Share icon below and select 'Add to Home Screen' ➕",
+    "iosHintClose": "Dismiss hint",
+    "iosHintAria": "How to install the app"
+  }
 }

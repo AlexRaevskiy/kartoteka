@@ -22,7 +22,7 @@ import { AuthContext, useAuth } from "./data/useAuth.js";
 import { LibraryProvider, useLibrary } from "./data/LibraryProvider.jsx";
 import { mergeGuestInto } from "./data/merge.js";
 import { DialogProvider, ToastProvider, useToast } from "./components/providers.jsx";
-import { UpdatePrompt } from "./components/PwaPrompts.jsx";
+import { IOSInstallHint, UpdatePrompt } from "./components/PwaPrompts.jsx";
 import { AuthScreen, LibraryError, SetupScreen, Splash } from "./components/screens.jsx";
 import BottomNav from "./components/BottomNav.jsx";
 import { onForegroundPush } from "./lib/push.js";
@@ -136,6 +136,7 @@ function Shell() {
   return (
     <div className="min-h-screen" style={{ paddingBottom: "calc(80px + env(safe-area-inset-bottom, 0px))" }}>
       <Outlet />
+      <IOSInstallHint />
       <BottomNav />
     </div>
   );

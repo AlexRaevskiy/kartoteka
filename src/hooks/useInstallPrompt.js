@@ -4,7 +4,7 @@
  *  - iOS Safari has no install API: we show "Share → Add to Home Screen" instructions instead.
  */
 import { useEffect, useState } from "react";
-import { isIOS, isStandalone } from "../lib/utils.js";
+import { isIOSSafari, isStandalone } from "../lib/utils.js";
 
 export function useInstallPrompt() {
   const [deferred, setDeferred] = useState(null);
@@ -38,7 +38,9 @@ export function useInstallPrompt() {
   return {
     installed,
     canInstall: !!deferred && !installed,
-    showIOSHint: isIOS() && !installed,
+    // iOS has no beforeinstallprompt: Safari users get "Share → Add to Home Screen" instructions.
+    // isStandalone() covers navigator.standalone, which is true once launched from the Home Screen.
+    showIOSHint: isIOSSafari() && !installed,
     promptInstall,
   };
 }

@@ -22,6 +22,13 @@ export const isIOS = () =>
   typeof navigator !== "undefined" &&
   (/iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1));
 
+/**
+ * Safari on iPhone/iPad — the only iOS browser whose Share menu reliably offers "Add to Home Screen"
+ * (Chrome/Firefox/Edge wrappers and in-app browsers like Instagram or Telegram don't).
+ */
+export const isIOSSafari = () =>
+  isIOS() && /Safari\//.test(navigator.userAgent) && !/CriOS|FxiOS|EdgiOS|OPiOS|YaBrowser|GSA\/|FBAN|FBAV|Instagram|Line\/|Telegram/i.test(navigator.userAgent);
+
 /** Running as an installed app (home screen icon), not inside a browser tab. */
 export const isStandalone = () =>
   typeof window !== "undefined" &&
