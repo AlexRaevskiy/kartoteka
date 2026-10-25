@@ -14,13 +14,12 @@
  *  Auth gate: Setup (no Firebase env) → Splash → Sign-in → LibraryProvider (live Firestore data).
  *  Shared links work after sign-in: the URL is kept while the user logs in.
  */
-import React, { useCallback, useEffect, useRef } from "react";
+import React, { useCallback, useEffect } from "react";
 import { Navigate, Outlet, Route, Routes, useLocation } from "react-router-dom";
 import { AlertTriangle, BellRing, Info } from "lucide-react";
 
 import { AuthContext, useAuth } from "./data/useAuth.js";
 import { LibraryProvider, useLibrary } from "./data/LibraryProvider.jsx";
-import { mergeGuestInto } from "./data/merge.js";
 import { DialogProvider, ToastProvider, useToast } from "./components/providers.jsx";
 import { IOSInstallHint, UpdatePrompt } from "./components/PwaPrompts.jsx";
 import { AuthScreen, LibraryError, SetupScreen, Splash } from "./components/screens.jsx";
@@ -64,7 +63,7 @@ function Gate({ auth }) {
   if (auth.status === "signedOut") return <AuthScreen auth={auth} />;
   return (
     <LibraryProvider key={auth.user.uid} user={auth.user} onError={onError}>
-      <Workspace auth={auth} />
+      <Workspace />
     </LibraryProvider>
   );
 }
@@ -82,7 +81,7 @@ function useThemeSync(theme) {
   }, [theme]);
 }
 
-function Workspace({ auth }) {
+function Workspace() {
   const lib = useLibrary();
   const toast = useToast();
   const location = useLocation();
@@ -104,14 +103,6 @@ function Workspace({ auth }) {
     onForegroundPush((body) => body && toast(body, { icon: BellRing, duration: 8000 })).then((fn) => (off = fn));
     return () => off();
   }, [toast]);
-
-  // Guest → existing Google account (redirect flow in the installed app).
-  const merging = useRef(false);
-  useEffect(() => {
-    if (!auth.pendingMerge || lib.status !== "ready" || !auth.user.isAnonymous || merging.current) return;
-    merging.current = true;
-    mergeGuestInto(auth, lib, auth.pendingMerge, toast);
-  }, [auth, lib, toast]);
 
   if (lib.status === "error") return <LibraryError message={lib.error} />;
   if (lib.status !== "ready") return <Splash label="Загружаем ваши наборы…" />;

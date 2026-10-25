@@ -1,15 +1,12 @@
 /**
  * Authentication hook: Google sign-in + anonymous "guest" mode.
  *
- * - Google: popup everywhere, including the installed PWA. On iOS a redirect leaves the app's
- *   scope (firebaseapp.com → Google), so it opens in Safari, and Safari's third-party storage
- *   blocking makes getRedirectResult() come back empty → the user lands on the sign-in screen
- *   again. A popup stays attached to the app and reports back to it.
+ * - Google: popup only (signInWithPopup / linkWithPopup), in the browser and in the installed PWA.
+ *   No redirect flow: Safari partitions storage, so signInWithRedirect fails with "missing
+ *   initial state", and in the iOS home-screen app a redirect opens in Safari and never returns.
  *   The popup must be opened synchronously inside the click handler — no `await` before
- *   signInWithPopup(), or iOS treats it as an unsolicited popup and blocks it.
- * - Redirect is only a fallback when the popup is blocked, and only where it can come back:
- *   in a regular browser tab, or when the auth domain is proxied through our own domain
- *   (netlify.toml → /__/auth/*).
+ *   signInWithPopup(), or iOS treats it as an unsolicited popup and blocks it. If it is blocked
+ *   anyway, the user sees a message asking to allow popups.
  * - Persistence is set once in src/firebase.js (initializeAuth: IndexedDB, then localStorage),
  *   so the session survives PWA restarts without calling setPersistence() before each sign-in.
  * - Guest: anonymous account, data still syncs to Firestore. Guests can later "upgrade" to
@@ -19,17 +16,13 @@ import { createContext, useCallback, useContext, useEffect, useState } from "rea
 import {
   onAuthStateChanged,
   signInWithPopup,
-  signInWithRedirect,
-  getRedirectResult,
   signInAnonymously,
   linkWithPopup,
-  linkWithRedirect,
   signInWithCredential,
   signOut as fbSignOut,
   GoogleAuthProvider,
 } from "firebase/auth";
 import { auth, googleProvider, firebaseConfigured } from "../firebase.js";
-import { isStandalone } from "../lib/utils.js";
 
 /** Human-readable messages for the errors users can actually hit. */
 export function authErrorMessage(err) {
@@ -45,8 +38,6 @@ export function authErrorMessage(err) {
     return "Окно входа Google заблокировано. Разрешите всплывающие окна для этого сайта и нажмите «Войти через Google» ещё раз.";
   if (code.includes("web-storage-unsupported"))
     return "Браузер блокирует хранилище, нужное для входа. Отключите приватный режим или блокировку cookie и попробуйте снова.";
-  if (code === REDIRECT_LOST)
-    return "Вход через Google не завершился: браузер не вернул результат. Попробуйте ещё раз — окно входа откроется поверх приложения.";
   // Unknown: show the real reason, so problems are visible instead of a silent reset.
   return `Не удалось войти${code ? ` (${code})` : ""}. ${err?.message || "Попробуйте ещё раз."}`;
 }
@@ -55,64 +46,16 @@ export function authErrorMessage(err) {
 export const AuthContext = createContext(null);
 export const useAuthContext = () => useContext(AuthContext);
 
-const POPUP_FALLBACK_CODES = ["auth/popup-blocked", "auth/operation-not-supported-in-this-environment"];
-
-/** Pseudo error code: we started a redirect, but the app came back without a result. */
-const REDIRECT_LOST = "app/redirect-result-lost";
-const REDIRECT_FLAG = "kartoteka.authRedirectStarted";
-
-/** Redirect can return to the app only from a browser tab, or when auth runs on our own domain. */
-function redirectCanReturn() {
-  return !isStandalone() || auth?.config?.authDomain === window.location.host;
-}
-
-function markRedirect(on) {
-  try {
-    if (on) sessionStorage.setItem(REDIRECT_FLAG, "1");
-    else sessionStorage.removeItem(REDIRECT_FLAG);
-  } catch {
-    /* storage blocked: we just can't detect a lost redirect */
-  }
-}
-
-function redirectWasStarted() {
-  try {
-    return sessionStorage.getItem(REDIRECT_FLAG) === "1";
-  } catch {
-    return false;
-  }
-}
-
 export function useAuth() {
   const [status, setStatus] = useState(firebaseConfigured ? "loading" : "unconfigured"); // loading | signedIn | signedOut | unconfigured
   const [user, setUser] = useState(null);
   const [error, setError] = useState(null);
   const [busy, setBusy] = useState(false);
-  // Set when a guest tried to link a Google account that already has its own data.
-  const [pendingMerge, setPendingMerge] = useState(null);
   // Firebase mutates the same User object on link; bump this to re-render.
   const [, setVersion] = useState(0);
 
   useEffect(() => {
     if (!auth) return undefined;
-
-    // Finish a redirect sign-in / link (fallback flow) when the app reloads after it.
-    const expectedRedirect = redirectWasStarted();
-    markRedirect(false);
-    getRedirectResult(auth)
-      .then((result) => {
-        // We sent the user to Google, but nothing came back and nobody is signed in:
-        // say so instead of silently showing the sign-in screen again.
-        if (expectedRedirect && !result && !auth.currentUser) setError(authErrorMessage({ code: REDIRECT_LOST }));
-      })
-      .catch((err) => {
-        if (err?.code === "auth/credential-already-in-use") {
-          setPendingMerge(GoogleAuthProvider.credentialFromError(err));
-        } else {
-          setError(authErrorMessage(err));
-        }
-      });
-
     return onAuthStateChanged(auth, (u) => {
       setUser(u);
       setVersion((v) => v + 1);
@@ -136,17 +79,7 @@ export function useAuth() {
   const signInWithGoogle = useCallback(
     () =>
       // run() calls this synchronously, so signInWithPopup() opens within the user's tap.
-      run(async () => {
-        try {
-          return await signInWithPopup(auth, googleProvider);
-        } catch (err) {
-          if (POPUP_FALLBACK_CODES.includes(err?.code) && redirectCanReturn()) {
-            markRedirect(true);
-            return signInWithRedirect(auth, googleProvider);
-          }
-          throw err;
-        }
-      }),
+      run(() => signInWithPopup(auth, googleProvider)),
     [run]
   );
 
@@ -161,15 +94,8 @@ export function useAuth() {
     setError(null);
     setBusy(true);
     try {
-      try {
-        // Popup first, opened within the tap (see the note at the top of the file).
-        await linkWithPopup(auth.currentUser, googleProvider);
-      } catch (err) {
-        if (!(POPUP_FALLBACK_CODES.includes(err?.code) && redirectCanReturn())) throw err;
-        markRedirect(true);
-        await linkWithRedirect(auth.currentUser, googleProvider);
-        return { redirecting: true };
-      }
+      // Popup opened within the tap (see the note at the top of the file).
+      await linkWithPopup(auth.currentUser, googleProvider);
       await auth.currentUser.reload();
       setUser(auth.currentUser);
       setVersion((v) => v + 1); // isAnonymous is now false
@@ -186,10 +112,7 @@ export function useAuth() {
   }, []);
 
   /** Sign in with an existing Google credential (used after a link conflict). */
-  const signInWithExistingCredential = useCallback(async (credential) => {
-    setPendingMerge(null);
-    return signInWithCredential(auth, credential);
-  }, []);
+  const signInWithExistingCredential = useCallback((credential) => signInWithCredential(auth, credential), []);
 
   const signOut = useCallback(() => run(() => fbSignOut(auth)), [run]);
 
@@ -198,7 +121,6 @@ export function useAuth() {
     user,
     error,
     busy,
-    pendingMerge,
     clearError: () => setError(null),
     signInWithGoogle,
     signInAsGuest,
