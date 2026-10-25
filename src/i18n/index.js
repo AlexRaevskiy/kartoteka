@@ -8,8 +8,8 @@ import en from "./locales/en.json";
 import { normalizeGoal } from "../lib/goals.js";
 
 export const LANGUAGES = [
-  { code: "ru", label: "Русский" },
-  { code: "en", label: "English" },
+  { code: "en", label: "🇬🇧 English" },
+  { code: "ru", label: "🇷🇺 Русский" },
 ];
 const STORAGE_KEY = "kartoteka.lang";
 
@@ -20,7 +20,8 @@ function initialLanguage() {
   } catch {
     /* storage blocked: fall through */
   }
-  return navigator.language?.toLowerCase().startsWith("ru") ? "ru" : "en";
+  // Most screens are still Russian-only, so Russian is the default until the user picks English.
+  return "ru";
 }
 
 export function setLanguage(code) {

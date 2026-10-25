@@ -137,8 +137,7 @@ function seededPick(list, seed) {
   return list[h % list.length];
 }
 
-/** `phrases` / `daysWord` let the UI pass translated texts; defaults are the Russian ones above. */
-export function motivationPhrase({ status, streak, todayKey, rnd, phrases = PHRASES, daysWord = (n) => plural(n, ["день", "дня", "дней"]) }) {
+export function motivationPhrase({ status, streak, todayKey, rnd }) {
   let key;
   if (status.met) key = "met";
   else if (status.started && status.goal.type === "rounds" && status.remaining === 1) key = "almostRounds";
@@ -146,11 +145,11 @@ export function motivationPhrase({ status, streak, todayKey, rnd, phrases = PHRA
   else if (streak >= 3) key = "streak";
   else if (status.started) key = "started";
   else key = "start";
-  const list = phrases[key] || PHRASES[key];
+  const list = PHRASES[key];
   const raw = rnd ? list[Math.floor(rnd() * list.length)] : seededPick(list, `${todayKey}:${key}`);
   return raw
     .replace("{n}", String(streak))
-    .replace("{days}", daysWord(streak))
+    .replace("{days}", plural(streak, ["день", "дня", "дней"]))
     .replace("{m}", String(Math.max(1, status.remaining)));
 }
 

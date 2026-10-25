@@ -11,6 +11,8 @@ import { speechLang } from "../../lib/languages.js";
 import { ProgressBar, SpeakButton } from "../ui.jsx";
 
 export default function RoundSummary({ summary, kind, hasMore, onFinish, onContinueMistakes, onNextRound, onSpeak }) {
+  // Handlers are called without the click event and only if they were passed.
+  const call = (fn) => () => (typeof fn === "function" ? fn() : undefined);
   const praise = useMemo(() => praiseFor(summary.accuracy), [summary]);
   const mistakes = summary.mistakes;
   const repeat = mistakes.length;
@@ -18,13 +20,13 @@ export default function RoundSummary({ summary, kind, hasMore, onFinish, onConti
   let continueButton = null;
   if (repeat) {
     continueButton = (
-      <button type="button" className="fc-btn fc-btn-filled fc-btn-lg flex-1" onClick={onContinueMistakes} autoFocus>
+      <button type="button" className="fc-btn fc-btn-filled fc-btn-lg flex-1" onClick={call(onContinueMistakes)} autoFocus>
         <RotateCcw size={20} /> Продолжить
       </button>
     );
   } else if (hasMore) {
     continueButton = (
-      <button type="button" className="fc-btn fc-btn-filled fc-btn-lg flex-1" onClick={onNextRound} autoFocus>
+      <button type="button" className="fc-btn fc-btn-filled fc-btn-lg flex-1" onClick={call(onNextRound)} autoFocus>
         Продолжить <ArrowRight size={20} />
       </button>
     );
@@ -87,13 +89,13 @@ export default function RoundSummary({ summary, kind, hasMore, onFinish, onConti
       )}
 
       <div className="flex gap-3 sticky bottom-0 pt-2 pb-1 bg-surface" style={{ paddingBottom: "calc(8px + env(safe-area-inset-bottom, 0px))" }}>
-        <button type="button" className="fc-btn fc-btn-outlined fc-btn-lg flex-1" onClick={onFinish}>
+        <button type="button" className="fc-btn fc-btn-outlined fc-btn-lg flex-1" onClick={call(onFinish)}>
           Завершить
         </button>
         {continueButton}
       </div>
       {repeat && hasMore ? (
-        <button type="button" className="fc-btn fc-btn-text self-center -mt-2" onClick={onNextRound}>
+        <button type="button" className="fc-btn fc-btn-text self-center -mt-2" onClick={call(onNextRound)}>
           Пропустить ошибки — следующий раунд
         </button>
       ) : null}

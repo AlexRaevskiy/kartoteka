@@ -57,9 +57,9 @@ export function useRounds({ items, goal, roundSize, onGrade, onRoundEnd }) {
 
   const continueMistakes = useCallback(() => {
     const s = stateRef.current;
-    if (!s.summary?.mistakes.length) return;
+    if (!s.summary?.mistakes.length) return startNormalRound(s.roundNo + 1);
     update({ phase: "playing", kind: "retry", roundNo: s.roundNo + 1, items: shuffle(s.summary.mistakes), pos: 0, results: [], summary: null, hasMore: false });
-  }, []);
+  }, [startNormalRound]);
 
   const nextRound = useCallback(() => startNormalRound(stateRef.current.roundNo + 1), [startNormalRound]);
 

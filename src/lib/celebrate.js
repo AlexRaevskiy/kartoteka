@@ -6,7 +6,11 @@
  * Respects prefers-reduced-motion.
  */
 let confettiPromise = null;
-const loadConfetti = () => (confettiPromise ??= import("canvas-confetti").then((m) => m.default).catch(() => null));
+// CJS interop differs between dev and production bundles: accept whichever shape is a function.
+const loadConfetti = () =>
+  (confettiPromise ??= import("canvas-confetti")
+    .then((m) => [m.default, m.default?.default, m].find((f) => typeof f === "function") || null)
+    .catch(() => null));
 
 function themeColors() {
   const cs = getComputedStyle(document.documentElement);
@@ -14,6 +18,14 @@ function themeColors() {
 }
 
 export async function celebrate(kind = "due") {
+  try {
+    await burst(kind);
+  } catch (err) {
+    console.warn("[Kartoteka] confetti failed", err); // decoration only — never break the app
+  }
+}
+
+async function burst(kind) {
   const confetti = await loadConfetti();
   if (!confetti) return;
   const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;

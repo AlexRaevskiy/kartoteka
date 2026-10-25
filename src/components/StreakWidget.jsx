@@ -6,7 +6,7 @@ import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { ChevronRight, Flame, Trophy } from "lucide-react";
 import { ProgressBar } from "./ui.jsx";
-import { displayedStreak, goalStatus, localDateKey, motivationPhrase, todayProgress } from "../lib/goals.js";
+import { displayedStreak, goalStatus, localDateKey, todayProgress } from "../lib/goals.js";
 import { goalAmount, goalText } from "../i18n/index.js";
 import { cx } from "../lib/utils.js";
 
@@ -18,10 +18,11 @@ export default function StreakWidget({ profile, settings, now }) {
   const status = goalStatus(settings.dailyGoal, dp);
   const streak = displayedStreak(profile, todayKey);
   const daysWord = (n) => t("streak.days", { count: n });
-  const phrase = useMemo(
-    () => motivationPhrase({ status, streak, todayKey, phrases: t("streak.phrases", { returnObjects: true }), daysWord }),
-    [status.met, status.started, status.remaining, streak, todayKey, i18n.language] // eslint-disable-line react-hooks/exhaustive-deps
-  );
+  // A random phrase from the current language; re-picked when progress or the language changes, not on every render.
+  const phrase = useMemo(() => {
+    const list = t("motivationalPhrases", { returnObjects: true });
+    return Array.isArray(list) && list.length ? list[Math.floor(Math.random() * list.length)] : "";
+  }, [status.done, status.met, streak, todayKey, i18n.language]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // "2/3 раунда" — the unit agrees with the target, the done count is shown separately.
   const unit = goalAmount(t, status.goal.type, status.target).replace(/^\d+\s*/, "");

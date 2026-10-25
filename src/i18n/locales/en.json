@@ -14,37 +14,7 @@
     "goalProgress": "Daily goal progress",
     "record": "Best: {{count}}",
     "recordLabel": "best streak",
-    "changeGoal": "Change goal",
-    "phrases": {
-      "start": [
-        "A great day to start!",
-        "A couple of minutes and the flame is lit 🔥",
-        "Shall we? The first round matters most."
-      ],
-      "started": [
-        "Great start!",
-        "Good beginning, keep going!",
-        "Warmed up — let's keep going!"
-      ],
-      "streak": [
-        "{n} {days} in a row — you're on fire!",
-        "{n} {days} in a row! Don't stop now.",
-        "{n}-{days} streak. Keep the flame alive!"
-      ],
-      "almostRounds": [
-        "Almost there, just one more round!",
-        "One more round and you're done for today!"
-      ],
-      "almostMinutes": [
-        "Almost there, only {m} min left!",
-        "{m} more min and the goal is done!"
-      ],
-      "met": [
-        "Well done, today's goal is complete!",
-        "Daily goal done. The flame is burning 🔥",
-        "Great job today! Time to rest ☕️"
-      ]
-    }
+    "changeGoal": "Change goal"
   },
   "goal": {
     "minutes": "{{count}} min",
@@ -105,5 +75,27 @@
     "testBody": "This is how reminders will look 🔥",
     "testFailed": "Couldn't show the notification",
     "exported": "Sets exported: {{count}}"
-  }
+  },
+  "motivationalPhrases": [
+    "Great start! Keep it up.",
+    "You're on a roll! 🔥",
+    "Consistency is key!",
+    "Little by little, a little becomes a lot.",
+    "Way to go!",
+    "You're crushing your goals! 🎯",
+    "Practice makes perfect.",
+    "Every card brings you closer to fluency.",
+    "Outstanding work today!",
+    "You're a learning machine 🤖",
+    "Don't break the streak!",
+    "Your brain is growing! 🧠",
+    "Another round, another victory.",
+    "Keep the flame alive! 🔥",
+    "Excellent effort!",
+    "You're doing amazing!",
+    "Step by step!",
+    "Knowledge is power ⚡️",
+    "Nailed it!",
+    "Keep pushing forward!"
+  ]
 }

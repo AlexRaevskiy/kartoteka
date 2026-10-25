@@ -64,6 +64,17 @@ const Loading = () => (
   </div>
 );
 
+/**
+ * Keeps the last ready value while a session is running. Grading writes progress, and the
+ * resulting snapshots can briefly report "loading"; unmounting the session then would throw the
+ * learner out of the round (e.g. right after "Продолжить").
+ */
+function useStickyReady(ready, value) {
+  const last = useRef(null);
+  if (ready) last.current = value;
+  return last.current;
+}
+
 function DeckStudy({ id, opts }) {
   const res = useDeckResource(id);
   const deck = res.deck;
@@ -72,9 +83,12 @@ function DeckStudy({ id, opts }) {
     const cards = opts.starred ? deck.cards.filter((c) => deck.starred.has(c.id)) : deck.cards;
     return toItems(deck, cards);
   }, [deck, opts.starred]);
-  if (res.status === "loading") return <Loading />;
-  if (res.status !== "ready" || !deck) return <Blocked icon={res.status === "locked" || res.status === "private" ? Lock : SearchX} title="Набор недоступен" backPath={`/deck/${id}`} />;
-  return <Session key={`${opts.mode}-${opts.goal}-${opts.starred}`} items={items} source={{ kind: "deck", id, title: deck.title }} backPath={`/deck/${id}`} opts={opts} />;
+  const live = useStickyReady(res.status === "ready" && !!deck, { deck, items });
+  if (!live) {
+    if (res.status === "loading") return <Loading />;
+    return <Blocked icon={res.status === "locked" || res.status === "private" ? Lock : SearchX} title="Набор недоступен" backPath={`/deck/${id}`} />;
+  }
+  return <Session key={`${opts.mode}-${opts.goal}-${opts.starred}`} items={live.items} source={{ kind: "deck", id, title: live.deck.title }} backPath={`/deck/${id}`} opts={opts} />;
 }
 
 function FolderStudy({ id, opts }) {
@@ -84,13 +98,16 @@ function FolderStudy({ id, opts }) {
   const ids = useMemo(() => (folder ? (tag ? folder.deckIds.filter((d) => tag.deckIds.includes(d)) : folder.deckIds) : []), [folder, tag]);
   const set = useDeckSet(ids);
   const items = useMemo(() => set.decks.flatMap((d) => toItems(d, opts.starred ? d.cards.filter((c) => d.starred.has(c.id)) : d.cards)), [set.decks, opts.starred]);
-  if (fres.status === "loading" || set.loading) return <Loading />;
-  if (fres.status !== "ready" || !folder) return <Blocked icon={Lock} title="Папка недоступна" backPath={`/folder/${id}`} />;
+  const live = useStickyReady(fres.status === "ready" && !!folder && !set.loading, { items, title: tag ? `${folder?.name} · ${tag.name}` : folder?.name });
+  if (!live) {
+    if (fres.status === "loading" || set.loading) return <Loading />;
+    return <Blocked icon={Lock} title="Папка недоступна" backPath={`/folder/${id}`} />;
+  }
   return (
     <Session
       key={`${opts.mode}-${opts.goal}-${opts.tag}`}
-      items={items}
-      source={{ kind: "folder", id, title: tag ? `${folder.name} · ${tag.name}` : folder.name }}
+      items={live.items}
+      source={{ kind: "folder", id, title: live.title }}
       backPath={`/folder/${id}`}
       opts={opts}
     />
@@ -141,12 +158,20 @@ function Session({ items, source, backPath, opts }) {
     [lib.actions, goalCelebration]
   );
 
-  useStudyTimer((seconds) => goalCelebration(lib.actions.recordActivity({ seconds })));
+  useStudyTimer((seconds) => {
+    // Also runs while the screen unmounts ("Завершить"), so it must never throw.
+    try {
+      goalCelebration(lib.actions.recordActivity({ seconds }));
+    } catch (err) {
+      console.error("[Kartoteka] study time not saved", err);
+    }
+  });
 
   const rounds = useRounds({ items, goal, roundSize: lib.settings.roundSize || 20, onGrade, onRoundEnd });
   const pool = useMemo(() => items.map((i) => i.card), [items]);
 
-  const exit = () => (window.history.state?.idx > 0 ? navigate(-1) : navigate(backPath, { replace: true }));
+  // Always leave to a known screen: going "back" in history could land outside the app or on a stale entry.
+  const exit = useCallback(() => navigate(backPath, { replace: true }), [navigate, backPath]);
   const setQuery = (patch) =>
     setParams((p) => {
       const next = new URLSearchParams(p);
