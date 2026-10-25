@@ -38,6 +38,14 @@ test("quick import parses 2 and 3 columns", () => {
   assert.equal(cards[0].exampleSentence, "ერთი ყავა.");
   assert.equal(cards[2].term, "well-known");
   assert.equal(skipped.length, 1);
+
+  // " // " separates the example after any term/definition separator; URLs stay intact.
+  const slash = parseImport("გამარჯობა - Привет // გამარჯობა, როგორ ხარ?\nsite = сайт // see https://example.com\nput off | postpone // Don't put it off.").cards;
+  assert.deepEqual(slash.map((c) => [c.term, c.definition, c.exampleSentence]), [
+    ["გამარჯობა", "Привет", "გამარჯობა, როგორ ხარ?"],
+    ["site", "сайт", "see https://example.com"],
+    ["put off", "postpone", "Don't put it off."],
+  ]);
 });
 
 test("leitner scheduling + cram never skips ahead", () => {

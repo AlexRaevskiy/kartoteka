@@ -15,7 +15,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Check, Eye, Lightbulb, Quote, RotateCcw, X } from "lucide-react";
-import { BoxBadge, ExampleSentence, SpeakButton } from "../ui.jsx";
+import { BoxBadge, ExampleBlock, SpeakButton } from "../ui.jsx";
 import DiffView from "./DiffView.jsx";
 import RatingHint from "./RatingHint.jsx";
 import { evaluateAnswer, diffIsUseful } from "../../lib/levenshtein.js";
@@ -131,9 +131,11 @@ export default function WriteMode({ card, deck, reverse, onAnswer, onSpeak, trac
         <div className="fc-term text-headline-md sm:text-headline-lg mt-3">{prompt}</div>
         {card.exampleSentence && (showExample || phase !== "input") ? (
           <div className="mt-4 pt-3 fc-border-t fc-in">
-            <ExampleSentence
+            <ExampleBlock
               sentence={card.exampleSentence}
               term={card.term}
+              deck={deck}
+              onSpeak={onSpeak}
               mode={answerIsTerm && phase === "input" ? "mask" : "highlight"}
             />
           </div>

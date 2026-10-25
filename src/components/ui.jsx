@@ -1,6 +1,6 @@
 /**
  * Shared M3-style UI pieces: buttons live in CSS (.fc-btn-*), these are the stateful bits.
- *   Spinner, SpeakButton, BoxBadge, ExampleSentence, EmptyPanel, Switch,
+ *   Spinner, SpeakButton, BoxBadge, ExampleSentence, ExampleBlock, EmptyPanel, Switch,
  *   Sheet (bottom sheet / dialog), Menu (three-dots), TopBar, ProgressBar
  */
 import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
@@ -8,6 +8,7 @@ import { ArrowLeft, Loader2, MoreVertical, Volume2, X } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { cx, splitOnTerm } from "../lib/utils.js";
+import { speechLang } from "../lib/languages.js";
 
 export function Spinner({ size = 18, className }) {
   return <Loader2 size={size} className={cx("fc-spin", className)} aria-hidden="true" />;
@@ -72,6 +73,21 @@ export function BoxBadge({ box }) {
       <span className="w-2 h-2 rounded-full" style={{ background: `var(--box-${box})` }} />
       {t("ui.box", { box })}
     </span>
+  );
+}
+
+/**
+ * Example sentence block (italic, set off by a rule) with its own speaker. The example is in the
+ * term's language, so it is read with the term's voice — also in "definition first" mode.
+ * No speaker while the term is blanked out (mode "mask"): it would give the answer away.
+ */
+export function ExampleBlock({ sentence, term, deck, onSpeak, mode = "highlight", className, textClassName, center = false }) {
+  if (!sentence) return null;
+  return (
+    <div className={cx("flex items-center gap-1 border-l-2 border-outline-variant pl-3", center && "justify-center text-center", className)}>
+      <ExampleSentence sentence={sentence} term={term} mode={mode} className={cx("min-w-0", !center && "flex-1", textClassName)} />
+      {mode !== "mask" && onSpeak ? <SpeakButton text={sentence} lang={speechLang(deck, "term", sentence)} onSpeak={onSpeak} size={18} className="shrink-0" /> : null}
+    </div>
   );
 }
 

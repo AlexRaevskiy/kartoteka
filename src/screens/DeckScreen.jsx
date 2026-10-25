@@ -35,7 +35,7 @@ import { useLibrary } from "../data/LibraryProvider.jsx";
 import { useDeckResource } from "../data/useRemote.js";
 import * as store from "../data/store.js";
 import { useDialogs, useToast } from "../components/providers.jsx";
-import { Avatar, EmptyPanel, Menu, ProgressBar, SpeakButton, TopBar } from "../components/ui.jsx";
+import { Avatar, EmptyPanel, ExampleBlock, Menu, ProgressBar, SpeakButton, TopBar } from "../components/ui.jsx";
 import CardCarousel from "../components/CardCarousel.jsx";
 import PasswordGate from "../components/PasswordGate.jsx";
 import { DownloadSheet, FolderPickerSheet, GoalSheet, SetInfoSheet, ShareSheet } from "../components/sheets.jsx";
@@ -330,7 +330,7 @@ function DeckView({ deck }) {
                         <div className="text-body-md text-on-surface-variant mt-0.5" style={{ overflowWrap: "anywhere" }}>
                           {c.definition}
                         </div>
-                        {c.exampleSentence ? <div className="fc-example text-body-sm mt-1">{c.exampleSentence}</div> : null}
+                        <ExampleBlock sentence={c.exampleSentence} term={c.term} deck={deck} onSpeak={onSpeak} className="mt-1.5" textClassName="text-body-sm" />
                       </div>
                       <button
                         type="button"

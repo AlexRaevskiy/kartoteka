@@ -6,7 +6,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Check, Undo2 } from "lucide-react";
-import { BoxBadge, ExampleSentence, SpeakButton } from "../ui.jsx";
+import { BoxBadge, ExampleBlock, SpeakButton } from "../ui.jsx";
 import RatingHint from "./RatingHint.jsx";
 import { cx, isTypingTarget } from "../../lib/utils.js";
 import { speechLang } from "../../lib/languages.js";
@@ -24,7 +24,8 @@ export default function FlashcardMode({ card, deck, reverse, onAnswer, keyboardE
   const front = reverse ? card.definition : card.term;
   const back = reverse ? card.term : card.definition;
   const frontLang = speechLang(deck, reverse ? "definition" : "term", front);
-  const backLang = speechLang(deck, reverse ? "term" : "definition", back);
+  // The back's speaker reads the word being learned (the term), never the translation.
+  const termLang = speechLang(deck, "term", card.term);
 
   useEffect(() => {
     if (!keyboardEnabled) return undefined;
@@ -126,11 +127,11 @@ export default function FlashcardMode({ card, deck, reverse, onAnswer, keyboardE
             <div className="fc-face fc-back fc-ruled" aria-hidden={!flipped}>
               <div className="flex items-center justify-between gap-2 px-4 sm:px-5" style={{ height: "3.5rem" }}>
                 <span className="text-body-md text-on-surface-variant truncate min-w-0">{front}</span>
-                <SpeakButton text={back} lang={backLang} onSpeak={onSpeak} />
+                <SpeakButton text={card.term} lang={termLang} onSpeak={onSpeak} />
               </div>
               <div className="flex-1 flex flex-col items-center justify-center gap-3 px-6 py-3 text-center min-h-0 overflow-auto">
                 <div className="fc-term text-headline-md sm:text-headline-lg">{back}</div>
-                <ExampleSentence sentence={card.exampleSentence} term={card.term} className="text-body-md sm:text-body-lg max-w-lg" />
+                <ExampleBlock sentence={card.exampleSentence} term={card.term} deck={deck} onSpeak={onSpeak} className="max-w-lg" center textClassName="text-body-md sm:text-body-lg" />
               </div>
             </div>
           </div>

@@ -11,7 +11,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { ArrowLeftRight, Check, FileText, Plus, Quote, Settings, Trash2, X, Lock, SearchX } from "lucide-react";
+import { ArrowLeftRight, Check, FileText, Plus, Settings, Trash2, X, Lock, SearchX } from "lucide-react";
 import { useLibrary } from "../data/LibraryProvider.jsx";
 import { useDeckResource } from "../data/useRemote.js";
 import * as store from "../data/store.js";
@@ -235,7 +235,7 @@ function Editor({ initial, asEditor = false }) {
                     <div className="flex items-center -mr-3">
                       {!exampleOpen ? (
                         <button type="button" className="fc-btn fc-btn-text" onClick={() => setShowExamples((s) => new Set([...s, c.id]))}>
-                          <Quote size={16} /> {t("editor.example")}
+                          <Plus size={16} /> {t("editor.addExample")}
                         </button>
                       ) : null}
                       <button type="button" className="fc-btn fc-icon-btn" aria-label={t("editor.deleteCard", { n: i + 1 })} onClick={() => removeCard(c.id)}>
@@ -280,7 +280,7 @@ function Editor({ initial, asEditor = false }) {
                   </div>
                   {exampleOpen ? (
                     <div className="mt-4">
-                      <input id={`ex-${c.id}`} className="fc-input fc-input-underline" value={c.exampleSentence} onChange={(e) => setCard(c.id, { exampleSentence: e.target.value })} />
+                      <input id={`ex-${c.id}`} className="fc-input fc-input-underline fc-example" placeholder={t("editor.examplePlaceholder")} lang={draft.termLang !== "auto" ? draft.termLang : undefined} value={c.exampleSentence} onChange={(e) => setCard(c.id, { exampleSentence: e.target.value })} />
                       <label htmlFor={`ex-${c.id}`} className="fc-label block mt-1">
                         {t("editor.exampleLabel")}
                       </label>
@@ -397,7 +397,7 @@ function SettingsSheet({ draft, set, asEditor, password, setPassword, hasPasswor
 }
 
 /* ---------- Bulk import (Quick Import) ---------- */
-const EXAMPLE = `გამარჯობა — Hello — გამარჯობა, როგორ ხარ?
+const EXAMPLE = `გამარჯობა - Hello // გამარჯობა, როგორ ხარ?
 look after\ttake care of\tShe looks after her brother.
 put off | postpone | Don't put off your homework.
 apple - яблоко`;

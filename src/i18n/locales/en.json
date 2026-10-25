@@ -425,14 +425,16 @@
     "password": "Set password",
     "passwordKeep": "Leave empty to keep it",
     "passwordHint": "One password for viewing and editing. Changing it revokes old access.",
-    "importHint": "One card per line: term — definition — example. Tabs, |, dashes, = and : all work",
+    "importHint": "One card per line: word - translation // example. Instead of “-” you can use tabs, |, dashes, = and :",
     "add": "Add",
     "openFile": "Open .txt / .csv",
     "wordList": "Word list",
     "definitionFirst": "My list has the definition first",
     "recognized": "Recognized: {{count}}",
     "skipped": "lines skipped: {{count}}",
-    "noSeparator": "No separator: lines {{lines}}"
+    "noSeparator": "No separator: lines {{lines}}",
+    "addExample": "Add example",
+    "examplePlaceholder": "Example in the term's language"
   },
   "folderScreen": {
     "privateTitle": "This folder is private",

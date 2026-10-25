@@ -6,7 +6,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Check, X } from "lucide-react";
-import { BoxBadge, ExampleSentence, SpeakButton } from "../ui.jsx";
+import { BoxBadge, ExampleBlock, SpeakButton } from "../ui.jsx";
 import RatingHint from "./RatingHint.jsx";
 import { cx, isTypingTarget, shuffle } from "../../lib/utils.js";
 import { tidy } from "../../lib/levenshtein.js";
@@ -127,8 +127,8 @@ export default function QuizMode({ card, deck, pool, reverse, onAnswer, keyboard
         ) : (
           <>
             {card.exampleSentence ? (
-              <div className="bg-surface-container-high rounded-2xl px-4 py-3 fc-in">
-                <ExampleSentence sentence={card.exampleSentence} term={card.term} />
+              <div className="bg-surface-container-high rounded-2xl px-4 py-2 fc-in">
+                <ExampleBlock sentence={card.exampleSentence} term={card.term} deck={deck} onSpeak={onSpeak} />
               </div>
             ) : null}
             <div className="flex flex-wrap items-center justify-between gap-3">

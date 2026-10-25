@@ -38,58 +38,49 @@ function languageName(lang) {
 }
 
 /* ---------- cloud audio playback ----------
- * iOS plays sound only in response to a tap, but the cloud audio arrives later (network).
- * A Web Audio context resumed during the tap stays unlocked, so the clip can start whenever it
- * is ready. <audio> is the fallback for browsers without Web Audio. */
-let ctx = null;
+ * One reusable <audio> element (singleton).
+ *  - iOS plays sound only in response to a tap, but the cloud audio arrives later (network).
+ *    Playing a silent clip on this element synchronously inside the tap unlocks it, so the
+ *    real clip can start on the same element when it is ready.
+ *  - Media elements use the "playback" audio category on iOS: unlike Web Audio, they are heard
+ *    through the speaker even with the silent switch on. navigator.audioSession (Safari 16.4+)
+ *    asks for the same category explicitly.
+ */
+const SILENCE = "data:audio/wav;base64,UklGRuwAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YcgAAACAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgA==";
+let player = null;
 let playToken = 0;
-let current = null; // AudioBufferSourceNode or HTMLAudioElement that is playing now
 
-function unlockAudio() {
-  const AC = typeof window !== "undefined" && (window.AudioContext || window.webkitAudioContext);
-  if (!AC) return;
-  try {
-    ctx ??= new AC();
-    if (ctx.state !== "running") ctx.resume().catch(() => {});
-    // A one-sample silent buffer started inside the tap — required by older iOS versions.
-    const src = ctx.createBufferSource();
-    src.buffer = ctx.createBuffer(1, 1, 22050);
-    src.connect(ctx.destination);
-    src.start(0);
-  } catch {
-    ctx = null;
+function getPlayer() {
+  if (typeof Audio === "undefined") return null;
+  if (!player) {
+    player = new Audio();
+    player.preload = "auto";
+    player.setAttribute("playsinline", "");
   }
+  return player;
+}
+
+/** Must run synchronously in the click/tap handler, before any await. */
+function unlockAudio() {
+  try {
+    if (navigator.audioSession) navigator.audioSession.type = "playback";
+  } catch {
+    /* not supported */
+  }
+  const audio = getPlayer();
+  if (!audio) return;
+  audio.src = SILENCE;
+  audio.play().catch(() => {}); // interrupted by the real clip below — that's fine
 }
 
 function stopCurrent() {
-  try {
-    current?.stop ? current.stop() : current?.pause?.();
-  } catch {
-    /* already stopped */
-  }
-  current = null;
-}
-
-function base64ToArrayBuffer(base64) {
-  const bin = atob(base64);
-  const bytes = new Uint8Array(bin.length);
-  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-  return bytes.buffer;
+  if (player && !player.paused) player.pause();
 }
 
 async function playBase64Mp3(base64) {
-  if (ctx) {
-    if (ctx.state !== "running") await ctx.resume();
-    const buffer = await ctx.decodeAudioData(base64ToArrayBuffer(base64));
-    const src = ctx.createBufferSource();
-    src.buffer = buffer;
-    src.connect(ctx.destination);
-    src.start(0);
-    current = src;
-    return;
-  }
-  const audio = new Audio(`data:audio/mpeg;base64,${base64}`);
-  current = audio;
+  const audio = getPlayer();
+  if (!audio) throw new Error("No audio support");
+  audio.src = `data:audio/mpeg;base64,${base64}`;
   await audio.play();
 }
 

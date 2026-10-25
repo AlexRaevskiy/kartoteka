@@ -5,7 +5,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ChevronLeft, ChevronRight, Maximize2 } from "lucide-react";
-import { SpeakButton } from "./ui.jsx";
+import { ExampleBlock, SpeakButton } from "./ui.jsx";
 import { cx } from "../lib/utils.js";
 
 const MAX_SLIDES = 200; // keep the DOM light for huge decks
@@ -16,7 +16,8 @@ function Slide({ card, reverse, onSpeak, deck }) {
   const front = reverse ? card.definition : card.term;
   const back = reverse ? card.term : card.definition;
   const frontLang = reverse ? deck.defLang : deck.termLang;
-  const backLang = reverse ? deck.termLang : deck.defLang;
+  // The back's speaker reads the word being learned (the term), never the translation.
+  const termLang = deck.termLang;
   return (
     <div className="fc-scene w-full" style={{ touchAction: "pan-x pan-y" }}>
       <div
@@ -43,11 +44,11 @@ function Slide({ card, reverse, onSpeak, deck }) {
         </div>
         <div className="fc-face fc-back" aria-hidden={!flipped}>
           <div className="flex justify-end p-2">
-            <SpeakButton text={back} lang={backLang} onSpeak={onSpeak} />
+            <SpeakButton text={card.term} lang={termLang} onSpeak={onSpeak} />
           </div>
           <div className="flex-1 flex flex-col items-center justify-center gap-2 px-6 pb-10 text-center min-h-0 overflow-auto">
             <div className="fc-term text-headline-sm">{back}</div>
-            {card.exampleSentence ? <p className="fc-example text-body-md">{card.exampleSentence}</p> : null}
+            <ExampleBlock sentence={card.exampleSentence} term={card.term} deck={deck} onSpeak={onSpeak} center textClassName="text-body-md" />
           </div>
         </div>
       </div>

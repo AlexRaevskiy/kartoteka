@@ -10,6 +10,7 @@
  *   term<TAB>definition<TAB>example           (spreadsheet copy-paste)
  *   term | definition | example sentence
  *   term — definition — example sentence      (spaced em/en dashes)
+ *   term - definition // example sentence      (" // " works after any separator above)
  *
  * Leading numbering and bullets ("1.", "-", "•") are ignored, as are blank lines and
  * lines starting with # or //. Duplicate lines are skipped.
@@ -43,8 +44,17 @@ function splitOnce(line, re) {
   return left && right ? [left, right, m[0]] : null;
 }
 
+// " // " (with spaces, so URLs like https://… stay intact) splits off the example sentence.
+const EXAMPLE_SLASHES = /\s+\/\/\s+/;
+
 export function parseLine(raw) {
-  const line = raw.replace(BULLET, "").trim();
+  let line = raw.replace(BULLET, "").trim();
+  let slashExample = "";
+  const slash = EXAMPLE_SLASHES.exec(line);
+  if (slash) {
+    slashExample = line.slice(slash.index + slash[0].length).trim();
+    line = line.slice(0, slash.index).trim();
+  }
   for (const re of PRIMARY_SEPARATORS) {
     const parts = splitOnce(line, re);
     if (!parts) continue;
@@ -52,9 +62,9 @@ export function parseLine(raw) {
 
     // Same separator type again → third column is the example sentence.
     let definition = rest;
-    let exampleSentence = "";
+    let exampleSentence = slashExample;
     const kind = sep.includes("|") ? "pipe" : sep.includes("\t") ? "tab" : /[—–]/.test(sep) && /\s/.test(sep) ? "dash" : null;
-    if (kind) {
+    if (kind && !slashExample) {
       const more = splitOnce(rest, EXAMPLE_SEPARATORS[kind]);
       if (more) {
         definition = more[0];
