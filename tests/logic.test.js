@@ -8,7 +8,8 @@ import { normalizeDeck, normalizeFolder, normalizeCardContent, progressFromLegac
 import { readBackup } from "../src/lib/backup.js";
 import { buildPool, summarizeRound, takeRound, toItems } from "../src/lib/rounds.js";
 import { addDaysToKey, applyActivity, displayedStreak, goalStatus, motivationPhrase } from "../src/lib/goals.js";
-import { PUSH_MESSAGES, decideReminder, localHoursToUtcHours } from "../src/lib/reminders.js";
+import { PUSH_MESSAGES, PUSH_MESSAGES_EN, decideReminder, localHoursToUtcHours } from "../src/lib/reminders.js";
+import { ttsCacheKey, voiceFor } from "../src/lib/tts.js";
 import { profileBackfill } from "../src/lib/profileBackfill.js";
 import { splitOnTerm } from "../src/lib/utils.js";
 import { deckToText } from "../src/lib/share.js";
@@ -125,6 +126,19 @@ test("smart reminders: only when the goal is not met, at the chosen hour, once",
   assert.equal(decideReminder({ ...user, currentStreak: 0, lastStudyDate: null, dailyProgress: { date: "2026-10-23", rounds: 1 } }, now, () => 0).message, PUSH_MESSAGES[3]);
   assert.equal(decideReminder({ ...user, currentStreak: 0, lastStudyDate: null, dailyProgress: { date: "2026-10-10", rounds: 1 } }, now, () => 0).message, PUSH_MESSAGES[4]);
   assert.deepEqual(localHoursToUtcHours([9, 20], { getTimezoneOffset: () => -240 }), [5, 16]);
+  // English interface → English reminder, same situation index.
+  const en = { ...user, settings: { ...user.settings, language: "en" } };
+  assert.equal(decideReminder(en, now, () => 0).message, PUSH_MESSAGES_EN[0]);
+  assert.equal(PUSH_MESSAGES_EN.length, PUSH_MESSAGES.length);
+});
+
+test("cloud speech: Georgian voice and a stable cache key shared by app and function", async () => {
+  assert.equal(voiceFor("ka-GE"), "ka-GE-EkaNeural");
+  assert.equal(voiceFor("xx-XX"), null);
+  const a = await ttsCacheKey("  გამარჯობა ", "ka-GE");
+  assert.equal(a, await ttsCacheKey("გამარჯობა", "ka-GE"));
+  assert.notEqual(a, await ttsCacheKey("გამარჯობა", "en-US"));
+  assert.match(a, /^[0-9a-f]{64}$/);
 });
 
 test("v2 profile backfill rebuilds the streak from the review log", () => {

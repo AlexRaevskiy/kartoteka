@@ -8,6 +8,7 @@
  */
 import React, { useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { FolderX, Lock, Pencil, Play, Plus, Search, Share2, Tag, Tags, Trash2, BookPlus, X, Check } from "lucide-react";
 import { useLibrary } from "../data/LibraryProvider.jsx";
 import { useDeckSet, useFolderResource } from "../data/useRemote.js";
@@ -18,12 +19,12 @@ import DeckListItem, { UnavailableDeckItem } from "../components/DeckListItem.js
 import { ShareSheet } from "../components/sheets.jsx";
 import { useNow } from "../hooks/useNow.js";
 import { FOLDER_COLORS } from "../lib/model.js";
-import { plural } from "../lib/leitner.js";
 import { cx } from "../lib/utils.js";
 
 export default function FolderScreen() {
   const { id } = useParams();
   const res = useFolderResource(id);
+  const { t } = useTranslation();
   if (res.status === "ready" && res.folder) return <FolderView folder={res.folder} />;
   return (
     <div className="min-h-screen">
@@ -31,11 +32,11 @@ export default function FolderScreen() {
       <main className="fc-gutter">
         <div className="mx-auto max-w-3xl mt-4">
           {res.status === "loading" ? (
-            <div className="fc-skeleton h-40" role="status" aria-label="Загрузка" />
+            <div className="fc-skeleton h-40" role="status" aria-label={t("common.loading")} />
           ) : res.status === "private" ? (
-            <EmptyPanel icon={Lock} title="Папка закрыта" body="Автор не открыл к ней доступ по ссылке." />
+            <EmptyPanel icon={Lock} title={t("folderScreen.privateTitle")} body={t("folderScreen.privateBody")} />
           ) : (
-            <EmptyPanel icon={FolderX} title="Папка не найдена" body="Возможно, её удалили." />
+            <EmptyPanel icon={FolderX} title={t("folderScreen.notFoundTitle")} body={t("folderScreen.notFoundBody")} />
           )}
         </div>
       </main>
@@ -47,6 +48,7 @@ function FolderView({ folder }) {
   const lib = useLibrary();
   const navigate = useNavigate();
   const toast = useToast();
+  const { t } = useTranslation();
   const { confirm, prompt } = useDialogs();
   const now = useNow();
   const own = folder.ownerId === lib.uid;
@@ -57,7 +59,7 @@ function FolderView({ folder }) {
   const [sheet, setSheet] = useState(null);
 
   const { decks, unavailable, loading } = useDeckSet(folder.deckIds);
-  const activeTag = folder.tags.find((t) => t.id === tagFilter);
+  const activeTag = folder.tags.find((tg) => tg.id === tagFilter);
 
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -71,7 +73,7 @@ function FolderView({ folder }) {
   const totalCards = visible.reduce((n, d) => n + d.cards.length, 0);
 
   const newTag = async () => {
-    const name = await prompt({ title: "Новый тег", message: "Тег собирает наборы внутри папки, например «Экзамен 1».", label: "Название тега", placeholder: "Экзамен 1", maxLength: 40, confirmLabel: "Создать" });
+    const name = await prompt({ title: t("folderScreen.newTag.title"), message: t("folderScreen.newTag.message"), label: t("folderScreen.newTag.label"), placeholder: t("folderScreen.newTag.placeholder"), maxLength: 40, confirmLabel: t("folder.new.confirm") });
     if (!name) return;
     const tagId = lib.actions.createTag(folder, name);
     setTagFilter(tagId);
@@ -79,20 +81,20 @@ function FolderView({ folder }) {
   };
 
   const menu = [
-    { label: "Добавить материалы", icon: BookPlus, onClick: () => setSheet("add"), hidden: !own },
-    { label: "Добавить/убрать теги", icon: Tags, onClick: () => setSheet("tags"), hidden: !own },
-    { label: "Редактировать папку", icon: Pencil, onClick: () => setSheet("edit"), hidden: !own },
-    { label: "Поделиться", icon: Share2, onClick: () => setSheet("share") },
+    { label: t("folderScreen.menu.addMaterials"), icon: BookPlus, onClick: () => setSheet("add"), hidden: !own },
+    { label: t("folderScreen.menu.tags"), icon: Tags, onClick: () => setSheet("tags"), hidden: !own },
+    { label: t("folderScreen.menu.edit"), icon: Pencil, onClick: () => setSheet("edit"), hidden: !own },
+    { label: t("common.share"), icon: Share2, onClick: () => setSheet("share") },
     { divider: true, hidden: !own },
     {
-      label: "Удалить папку",
+      label: t("folderScreen.menu.delete"),
       icon: Trash2,
       danger: true,
       hidden: !own,
       onClick: async () => {
-        if (!(await confirm({ title: "Удалить папку?", message: `«${folder.name}» исчезнет, но сами наборы останутся в библиотеке.`, confirmLabel: "Удалить", danger: true }))) return;
+        if (!(await confirm({ title: t("folderScreen.deleteConfirm.title"), message: t("folderScreen.deleteConfirm.message", { name: folder.name }), confirmLabel: t("common.delete"), danger: true }))) return;
         await lib.actions.deleteFolder(folder.id);
-        toast("Папка удалена");
+        toast(t("folderScreen.deleted"));
         navigate("/", { replace: true });
       },
     },
@@ -103,8 +105,8 @@ function FolderView({ folder }) {
 
   return (
     <div className="min-h-screen" style={{ paddingBottom: "calc(120px + env(safe-area-inset-bottom, 0px))" }}>
-      <SEO title={`${folder.name} | Kartoteka`} description={`Папка «${folder.name}» в Kartoteka: ${folder.deckIds.length} ${plural(folder.deckIds.length, ["набор", "набора", "наборов"])} флеш-карточек для изучения по методу Лейтнера.`} />
-      <TopBar back title={folder.name} actions={<Menu items={menu} label="Действия с папкой" />} />
+      <SEO title={`${folder.name} | Kartoteka`} description={t("folderScreen.seoDescription", { name: folder.name, sets: t("folder.setCount", { count: folder.deckIds.length }) })} />
+      <TopBar back title={folder.name} actions={<Menu items={menu} label={t("folderScreen.actions")} />} />
       <main className="fc-gutter">
         <div className="mx-auto max-w-3xl flex flex-col gap-4">
           <div className="flex items-center gap-4">
@@ -114,9 +116,9 @@ function FolderView({ folder }) {
             <div className="min-w-0">
               <h1 className="text-headline-sm truncate">{folder.name}</h1>
               <p className="text-body-md text-on-surface-variant">
-                {folder.deckIds.length} {plural(folder.deckIds.length, ["набор", "набора", "наборов"])}
-                {!own ? ` · ${folder.ownerName || "автор"}` : ""}
-                {folder.visibility === "public" ? " · по ссылке" : ""}
+                {t("folder.setCount", { count: folder.deckIds.length })}
+                {!own ? ` · ${folder.ownerName || t("deck.author")}` : ""}
+                {folder.visibility === "public" ? ` · ${t("deck.badgePublic")}` : ""}
               </p>
             </div>
           </div>
@@ -125,38 +127,38 @@ function FolderView({ folder }) {
           <div className="relative">
             <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant pointer-events-none" />
             <label htmlFor="folder-search" className="sr-only">
-              Поиск в папке
+              {t("folderScreen.search")}
             </label>
-            <input id="folder-search" type="search" className="fc-input rounded-full bg-surface-container-high border-transparent" style={{ paddingLeft: "2.75rem" }} placeholder="Поиск в папке" value={query} onChange={(e) => setQuery(e.target.value)} />
+            <input id="folder-search" type="search" className="fc-input rounded-full bg-surface-container-high border-transparent" style={{ paddingLeft: "2.75rem" }} placeholder={t("folderScreen.search")} value={query} onChange={(e) => setQuery(e.target.value)} />
           </div>
 
-          <div className="fc-hscroll gap-2 -mx-4 px-4" role="group" aria-label="Фильтр по тегам">
+          <div className="fc-hscroll gap-2 -mx-4 px-4" role="group" aria-label={t("folderScreen.tagFilter")}>
             <button type="button" className="fc-chip" aria-pressed={tagFilter === "all"} onClick={() => setTagFilter("all")}>
-              {tagFilter === "all" ? <Check size={16} /> : null} All
+              {tagFilter === "all" ? <Check size={16} /> : null} {t("folderScreen.allTags")}
             </button>
-            {folder.tags.map((t) => (
-              <button key={t.id} type="button" className="fc-chip" aria-pressed={tagFilter === t.id} onClick={() => setTagFilter(t.id)}>
-                {tagFilter === t.id ? <Check size={16} /> : <Tag size={14} />} {t.name}
-                <span className="opacity-70 fc-tabular">{t.deckIds.length}</span>
+            {folder.tags.map((tg) => (
+              <button key={tg.id} type="button" className="fc-chip" aria-pressed={tagFilter === tg.id} onClick={() => setTagFilter(tg.id)}>
+                {tagFilter === tg.id ? <Check size={16} /> : <Tag size={14} />} {tg.name}
+                <span className="opacity-70 fc-tabular">{tg.deckIds.length}</span>
               </button>
             ))}
             {own ? (
               <button type="button" className="fc-chip border-dashed" onClick={newTag}>
-                <Plus size={16} /> New tag
+                <Plus size={16} /> {t("folderScreen.newTag.chip")}
               </button>
             ) : null}
           </div>
 
           <div className="flex items-center justify-between gap-3">
             <span className="text-body-md text-on-surface-variant fc-tabular">
-              {visible.length} {plural(visible.length, ["набор", "набора", "наборов"])} · {totalCards} {plural(totalCards, ["карточка", "карточки", "карточек"])}
+              {t("folder.setCount", { count: visible.length })} · {t("deck.cardCount", { count: totalCards })}
             </span>
-            <div className="fc-seg" role="group" aria-label="Сортировка">
+            <div className="fc-seg" role="group" aria-label={t("deck.sort")}>
               <button type="button" aria-pressed={sort === "recent"} onClick={() => setSort("recent")}>
-                Недавние
+                {t("folderScreen.sortRecent")}
               </button>
               <button type="button" aria-pressed={sort === "title"} onClick={() => setSort("title")}>
-                По названию
+                {t("folderScreen.sortTitle")}
               </button>
             </div>
           </div>
@@ -164,12 +166,12 @@ function FolderView({ folder }) {
           {folder.deckIds.length === 0 ? (
             <EmptyPanel
               icon={BookPlus}
-              title="Папка пуста"
-              body={own ? "Добавьте сюда наборы — один набор может лежать в нескольких папках сразу." : "Автор ещё ничего не добавил."}
+              title={t("folderScreen.emptyTitle")}
+              body={own ? t("folderScreen.emptyOwn") : t("folderScreen.emptyOther")}
               actions={
                 own ? (
                   <button type="button" className="fc-btn fc-btn-filled" onClick={() => setSheet("add")}>
-                    <Plus size={18} /> Добавить наборы
+                    <Plus size={18} /> {t("folderScreen.addSets")}
                   </button>
                 ) : null
               }
@@ -181,7 +183,7 @@ function FolderView({ folder }) {
               ))}
               {loading ? <div className="fc-skeleton h-20" /> : null}
               {tagFilter === "all" && !query ? unavailable.map((id) => <UnavailableDeckItem key={id} />) : null}
-              {!visible.length && !loading ? <p className="text-body-md text-on-surface-variant text-center py-6">Ничего не найдено</p> : null}
+              {!visible.length && !loading ? <p className="text-body-md text-on-surface-variant text-center py-6">{t("common.nothingFound")}</p> : null}
             </div>
           )}
         </div>
@@ -191,12 +193,13 @@ function FolderView({ folder }) {
       <div className="fixed left-0 right-0 bottom-0 z-20 fc-gutter pointer-events-none" style={{ paddingBottom: "calc(16px + env(safe-area-inset-bottom, 0px))" }}>
         <div className="mx-auto max-w-3xl flex flex-col items-end gap-3">
           {own ? (
-            <button type="button" className="fc-fab pointer-events-auto" aria-label="Добавить наборы в папку" onClick={() => setSheet("add")}>
+            <button type="button" className="fc-fab pointer-events-auto" aria-label={t("folderScreen.addSetsAria")} onClick={() => setSheet("add")}>
               <Plus size={24} />
             </button>
           ) : null}
           <button type="button" className="fc-btn fc-btn-filled fc-btn-lg w-full pointer-events-auto shadow-lg" disabled={!totalCards} onClick={studyAll}>
-            <Play size={20} fill="currentColor" /> Study All{activeTag ? ` · ${activeTag.name}` : ""}
+            <Play size={20} fill="currentColor" /> {t("folderScreen.studyAll")}
+            {activeTag ? ` · ${activeTag.name}` : ""}
             <span className="opacity-80 font-normal fc-tabular">({totalCards})</span>
           </button>
         </div>
@@ -213,7 +216,7 @@ function FolderView({ folder }) {
           canManage={own}
           onVisibility={(visibility) => {
             lib.actions.updateFolder(folder.id, { visibility });
-            toast(visibility === "public" ? "Папка открыта по ссылке" : "Папка снова только ваша");
+            toast(visibility === "public" ? t("folderScreen.nowPublic") : t("folderScreen.nowPrivate"));
           }}
           onClose={() => setSheet(null)}
         />
@@ -225,19 +228,21 @@ function FolderView({ folder }) {
 /* ---------- FAB: add existing sets ---------- */
 function AddDecksSheet({ folder, onClose }) {
   const lib = useLibrary();
+  const { t } = useTranslation();
   const [q, setQ] = useState("");
   const list = lib.decks.filter((d) => d.title.toLowerCase().includes(q.trim().toLowerCase()));
   return (
-    <Sheet title="Добавить в папку" subtitle={folder.name} onClose={onClose} labelId="add-title" footer={<button type="button" className="fc-btn fc-btn-filled" onClick={onClose}>Готово</button>}>
-      <input type="search" className="fc-input" placeholder="Поиск наборов" aria-label="Поиск наборов" value={q} onChange={(e) => setQ(e.target.value)} />
-      {lib.decks.length === 0 ? <p className="text-body-md text-on-surface-variant">У вас пока нет наборов.</p> : null}
+    <Sheet title={t("deck.addToFolder")} subtitle={folder.name} onClose={onClose} labelId="add-title" footer={<button type="button" className="fc-btn fc-btn-filled" onClick={onClose}>{t("common.done")}</button>}>
+      <input type="search" className="fc-input" placeholder={t("folderScreen.searchSets")} aria-label={t("folderScreen.searchSets")} value={q} onChange={(e) => setQ(e.target.value)} />
+      {lib.decks.length === 0 ? <p className="text-body-md text-on-surface-variant">{t("folderScreen.noSets")}</p> : null}
       <div className="flex flex-col -mx-2">
         {list.map((d) => (
           <label key={d.id} className="fc-list-item rounded-xl cursor-pointer">
             <span className="flex-1 min-w-0">
               <span className="block text-body-lg truncate">{d.title}</span>
               <span className="block text-body-sm text-on-surface-variant">
-                {d.cards.length} карт.{!d.own ? ` · ${d.ownerName}` : ""}
+                {t("deck.cardCount", { count: d.cards.length })}
+                {!d.own ? ` · ${d.ownerName}` : ""}
               </span>
             </span>
             <input
@@ -257,19 +262,20 @@ function AddDecksSheet({ folder, onClose }) {
 /* ---------- Tags inside the folder ---------- */
 function TagsSheet({ folder, decks, initialTag, onNewTag, onClose }) {
   const lib = useLibrary();
+  const { t } = useTranslation();
   const { confirm } = useDialogs();
   const [tagId, setTagId] = useState(initialTag || folder.tags[0]?.id || null);
-  const tag = folder.tags.find((t) => t.id === tagId);
+  const tag = folder.tags.find((tg) => tg.id === tagId);
   return (
-    <Sheet title="Теги в папке" subtitle="Отметьте, какие наборы входят в тег" onClose={onClose} labelId="tags-title" footer={<button type="button" className="fc-btn fc-btn-filled" onClick={onClose}>Готово</button>}>
+    <Sheet title={t("folderScreen.tagsTitle")} subtitle={t("folderScreen.tagsSubtitle")} onClose={onClose} labelId="tags-title" footer={<button type="button" className="fc-btn fc-btn-filled" onClick={onClose}>{t("common.done")}</button>}>
       <div className="flex flex-wrap gap-2">
-        {folder.tags.map((t) => (
-          <button key={t.id} type="button" className="fc-chip" aria-pressed={t.id === tagId} onClick={() => setTagId(t.id)}>
-            <Tag size={14} /> {t.name}
+        {folder.tags.map((tg) => (
+          <button key={tg.id} type="button" className="fc-chip" aria-pressed={tg.id === tagId} onClick={() => setTagId(tg.id)}>
+            <Tag size={14} /> {tg.name}
           </button>
         ))}
         <button type="button" className="fc-chip border-dashed" onClick={onNewTag}>
-          <Plus size={16} /> New tag
+          <Plus size={16} /> {t("folderScreen.newTag.chip")}
         </button>
       </div>
       {tag ? (
@@ -287,24 +293,24 @@ function TagsSheet({ folder, decks, initialTag, onNewTag, onClose }) {
                 />
               </label>
             ))}
-            {!decks.length ? <p className="text-body-md text-on-surface-variant px-2">Сначала добавьте наборы в папку.</p> : null}
+            {!decks.length ? <p className="text-body-md text-on-surface-variant px-2">{t("folderScreen.addSetsFirst")}</p> : null}
           </div>
           <button
             type="button"
             className="fc-btn fc-btn-text self-start"
             style={{ color: "var(--md-error)" }}
             onClick={async () => {
-              if (await confirm({ title: `Удалить тег «${tag.name}»?`, message: "Наборы останутся в папке.", confirmLabel: "Удалить", danger: true })) {
+              if (await confirm({ title: t("folderScreen.deleteTagConfirm.title", { name: tag.name }), message: t("folderScreen.deleteTagConfirm.message"), confirmLabel: t("common.delete"), danger: true })) {
                 lib.actions.deleteTag(folder, tag.id);
-                setTagId(folder.tags.find((t) => t.id !== tag.id)?.id || null);
+                setTagId(folder.tags.find((tg) => tg.id !== tag.id)?.id || null);
               }
             }}
           >
-            <X size={18} /> Удалить тег
+            <X size={18} /> {t("folderScreen.deleteTag")}
           </button>
         </>
       ) : (
-        <p className="text-body-md text-on-surface-variant">Тегов пока нет. Создайте первый, например «Экзамен 1».</p>
+        <p className="text-body-md text-on-surface-variant">{t("folderScreen.noTags")}</p>
       )}
     </Sheet>
   );
@@ -313,41 +319,42 @@ function TagsSheet({ folder, decks, initialTag, onNewTag, onClose }) {
 /* ---------- Edit folder: name, colour, tag names ---------- */
 function EditFolderSheet({ folder, onClose }) {
   const lib = useLibrary();
+  const { t } = useTranslation();
   const [name, setName] = useState(folder.name);
   const [color, setColor] = useState(folder.color);
   const [tags, setTags] = useState(folder.tags);
   const save = (e) => {
     e.preventDefault();
-    lib.actions.updateFolder(folder.id, { name: name.trim().slice(0, 80) || folder.name, color, tags: tags.filter((t) => t.name.trim()) });
+    lib.actions.updateFolder(folder.id, { name: name.trim().slice(0, 80) || folder.name, color, tags: tags.filter((tg) => tg.name.trim()) });
     onClose();
   };
   return (
     <Sheet
       as="form"
       onSubmit={save}
-      title="Редактировать папку"
+      title={t("folderScreen.menu.edit")}
       onClose={onClose}
       labelId="edit-folder-title"
       footer={
         <>
           <button type="button" className="fc-btn fc-btn-text" onClick={onClose}>
-            Отмена
+            {t("common.cancel")}
           </button>
           <button type="submit" className="fc-btn fc-btn-filled">
-            Сохранить
+            {t("common.save")}
           </button>
         </>
       }
     >
       <div>
         <label htmlFor="folder-name" className="fc-label">
-          Название
+          {t("folder.new.label")}
         </label>
         <input id="folder-name" className="fc-input mt-1" maxLength={80} value={name} onChange={(e) => setName(e.target.value)} />
       </div>
       <div>
-        <div className="fc-label mb-2">Цвет</div>
-        <div className="flex gap-2 flex-wrap" role="radiogroup" aria-label="Цвет папки">
+        <div className="fc-label mb-2">{t("folderScreen.color")}</div>
+        <div className="flex gap-2 flex-wrap" role="radiogroup" aria-label={t("folderScreen.colorAria")}>
           {FOLDER_COLORS.map((c) => (
             <button
               key={c}
@@ -366,18 +373,18 @@ function EditFolderSheet({ folder, onClose }) {
       </div>
       {tags.length ? (
         <div>
-          <div className="fc-label mb-2">Теги</div>
+          <div className="fc-label mb-2">{t("folderScreen.tags")}</div>
           <div className="flex flex-col gap-2">
-            {tags.map((t, i) => (
-              <div key={t.id} className="flex items-center gap-2">
+            {tags.map((tg, i) => (
+              <div key={tg.id} className="flex items-center gap-2">
                 <input
                   className="fc-input"
-                  aria-label={`Тег ${i + 1}`}
+                  aria-label={t("folderScreen.tagN", { n: i + 1 })}
                   maxLength={40}
-                  value={t.name}
-                  onChange={(e) => setTags(tags.map((x) => (x.id === t.id ? { ...x, name: e.target.value } : x)))}
+                  value={tg.name}
+                  onChange={(e) => setTags(tags.map((x) => (x.id === tg.id ? { ...x, name: e.target.value } : x)))}
                 />
-                <button type="button" className="fc-btn fc-icon-btn" aria-label={`Удалить тег ${t.name}`} onClick={() => setTags(tags.filter((x) => x.id !== t.id))}>
+                <button type="button" className="fc-btn fc-icon-btn" aria-label={t("folderScreen.deleteTagNamed", { name: tg.name })} onClick={() => setTags(tags.filter((x) => x.id !== tg.id))}>
                   <Trash2 size={20} />
                 </button>
               </div>

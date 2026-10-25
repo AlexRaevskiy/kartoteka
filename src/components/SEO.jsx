@@ -4,6 +4,7 @@
  */
 import React from "react";
 import { Helmet } from "react-helmet-async";
+import { useTranslation } from "react-i18next";
 
 // The static fallback tags in index.html are for crawlers without JavaScript. Once the app runs,
 // drop them so every screen has exactly one description / og:* / twitter:* (React 19 hoists
@@ -11,12 +12,12 @@ import { Helmet } from "react-helmet-async";
 if (typeof document !== "undefined") document.head.querySelectorAll("[data-seo-fallback]").forEach((el) => el.remove());
 
 export const SITE_NAME = "Kartoteka";
-export const DEFAULT_TITLE = "Kartoteka - Умные флеш-карточки по методу Лейтнера";
-export const DEFAULT_DESCRIPTION =
-  "Учите слова с флеш-карточками по методу Лейтнера: интервальное повторение показывает каждую карточку именно тогда, когда вы начинаете её забывать. Работает офлайн и синхронизируется между устройствами.";
 
-export default function SEO({ title = DEFAULT_TITLE, description, type = "website", noindex = false }) {
-  const desc = (description || DEFAULT_DESCRIPTION).replace(/\s+/g, " ").trim().slice(0, 300);
+/** Defaults (seo.title / seo.description) follow the interface language. */
+export default function SEO({ title, description, type = "website", noindex = false }) {
+  const { t } = useTranslation();
+  title ||= t("seo.title");
+  const desc = (description || t("seo.description")).replace(/\s+/g, " ").trim().slice(0, 300);
   return (
     <Helmet>
       <title>{title}</title>

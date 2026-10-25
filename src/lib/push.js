@@ -7,20 +7,21 @@
  *   3. the token is saved to users/{uid}.fcmTokens
  * Server side: netlify/functions/send-reminders.mjs runs hourly and sends the reminders.
  *
- * iPhone/iPad: web push only works in the app installed via "На экран Домой" (iOS 16.4+).
+ * iPhone/iPad: web push only works in the app installed via "Add to Home Screen" (iOS 16.4+).
  */
 import { app } from "../firebase.js";
 import { isIOS, isStandalone } from "./utils.js";
+import i18n from "../i18n/index.js";
 
 const VAPID_KEY = import.meta.env.VITE_FIREBASE_VAPID_KEY;
 
 export function pushSupport() {
   if (typeof window === "undefined") return { ok: false, reason: "server" };
   if (!("Notification" in window) || !("serviceWorker" in navigator) || !("PushManager" in window)) {
-    if (isIOS() && !isStandalone()) return { ok: false, reason: "ios-install", message: "На iPhone уведомления работают только в установленном приложении: Поделиться → «На экран Домой»." };
-    return { ok: false, reason: "unsupported", message: "Этот браузер не поддерживает уведомления." };
+    if (isIOS() && !isStandalone()) return { ok: false, reason: "ios-install", message: i18n.t("push.iosInstall") };
+    return { ok: false, reason: "unsupported", message: i18n.t("push.unsupported") };
   }
-  if (!VAPID_KEY) return { ok: false, reason: "no-vapid", message: "Не задан VITE_FIREBASE_VAPID_KEY (Firebase → Cloud Messaging → Web Push certificates)." };
+  if (!VAPID_KEY) return { ok: false, reason: "no-vapid", message: i18n.t("push.noVapid") };
   return { ok: true };
 }
 
@@ -36,20 +37,20 @@ export async function enablePush(saveToken) {
 
   const permission = await Notification.requestPermission();
   if (permission !== "granted") {
-    return { ok: false, message: permission === "denied" ? "Уведомления запрещены в настройках браузера. Разрешите их для этого сайта." : "Разрешение не выдано." };
+    return { ok: false, message: permission === "denied" ? i18n.t("push.denied") : i18n.t("toast.permissionDenied") };
   }
 
   try {
     const { getMessaging, getToken, isSupported } = await import("firebase/messaging");
-    if (!(await isSupported())) return { ok: false, message: "Firebase Messaging не поддерживается в этом браузере." };
+    if (!(await isSupported())) return { ok: false, message: i18n.t("push.messagingUnsupported") };
     const registration = await navigator.serviceWorker.ready;
     const token = await getToken(getMessaging(app), { vapidKey: VAPID_KEY, serviceWorkerRegistration: registration });
-    if (!token) return { ok: false, message: "Не удалось получить токен уведомлений." };
+    if (!token) return { ok: false, message: i18n.t("push.noToken") };
     await saveToken(token);
     return { ok: true, token };
   } catch (err) {
     console.error("[push]", err);
-    return { ok: false, message: err?.message || "Не удалось включить уведомления." };
+    return { ok: false, message: err?.message || i18n.t("push.failed") };
   }
 }
 

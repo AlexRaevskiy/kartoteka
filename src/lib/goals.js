@@ -12,8 +12,8 @@
  */
 
 export const GOAL_TYPES = {
-  minutes: { label: "По времени", options: [5, 10, 15, 20, 30], unit: "мин" },
-  rounds: { label: "По раундам", options: [1, 2, 3, 5], unit: "раунд." },
+  minutes: { options: [5, 10, 15, 20, 30] },
+  rounds: { options: [1, 2, 3, 5] },
 };
 export const DEFAULT_GOAL = { type: "rounds", value: 3 };
 
@@ -151,9 +151,4 @@ export function motivationPhrase({ status, streak, todayKey, rnd }) {
     .replace("{n}", String(streak))
     .replace("{days}", plural(streak, ["день", "дня", "дней"]))
     .replace("{m}", String(Math.max(1, status.remaining)));
-}
-
-export function goalLabel(goalIn) {
-  const g = normalizeGoal(goalIn);
-  return g.type === "minutes" ? `${g.value} мин в день` : `${g.value} ${plural(g.value, ["раунд", "раунда", "раундов"])} в день`;
 }

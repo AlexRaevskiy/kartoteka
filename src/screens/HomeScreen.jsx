@@ -13,14 +13,16 @@ import DeckListItem from "../components/DeckListItem.jsx";
 import { InstallBanner } from "../components/PwaPrompts.jsx";
 import { EmptyPanel, Spinner } from "../components/ui.jsx";
 import { useNow } from "../hooks/useNow.js";
-import { deckStats, plural } from "../lib/leitner.js";
+import { useTranslation } from "react-i18next";
+import { deckStats } from "../lib/leitner.js";
 import { MODES } from "./StudyScreen.jsx";
 
 function SyncIcon({ sync }) {
+  const { t } = useTranslation();
   const map = {
-    saved: [Cloud, "Сохранено", "text-on-surface-variant"],
-    saving: [CloudUpload, "Сохраняем…", "text-primary"],
-    offline: [CloudOff, "Офлайн: изменения отправятся позже", "fc-warn"],
+    saved: [Cloud, t("home.sync.saved"), "text-on-surface-variant"],
+    saving: [CloudUpload, t("home.sync.saving"), "text-primary"],
+    offline: [CloudOff, t("home.sync.offline"), "fc-warn"],
   };
   if (sync === "connecting") return <Spinner size={18} className="text-on-surface-variant" />;
   const [Icon, label, cls] = map[sync] || map.saved;
@@ -33,11 +35,12 @@ function SyncIcon({ sync }) {
 
 function ContinueWidget({ lib, now }) {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const last = lib.settings.lastStudy;
   let target = null;
   if (last?.kind === "folder" && lib.foldersById[last.id]) {
     const f = lib.foldersById[last.id];
-    target = { title: f.name, sub: "Папка", path: `/folder/${f.id}/study?mode=${last.mode || "flashcards"}&goal=${last.goal || "memorize"}` };
+    target = { title: f.name, sub: t("home.folder"), path: `/folder/${f.id}/study?mode=${last.mode || "flashcards"}&goal=${last.goal || "memorize"}` };
   } else {
     const deck = (last?.kind === "deck" && lib.decksById[last.id]) || lib.decks.find((d) => d.lastStudiedAt);
     if (deck) {
@@ -46,8 +49,8 @@ function ContinueWidget({ lib, now }) {
       const goal = last?.id === deck.id ? last.goal || "memorize" : "memorize";
       target = {
         title: deck.title,
-        sub: s.due ? `${s.due} ${plural(s.due, ["карточка ждёт", "карточки ждут", "карточек ждут"])} повтора` : `Выучено ${s.pct}%`,
-        mode: MODES.find((m) => m.id === mode)?.label,
+        sub: s.due ? t("home.cardsWaiting", { count: s.due }) : t("home.masteredPct", { pct: s.pct }),
+        mode: MODES.some((m) => m.id === mode) ? t(`modes.${mode}.label`) : undefined,
         path: `/deck/${deck.id}/study?mode=${mode}&goal=${goal}`,
         pct: s.pct,
       };
@@ -60,12 +63,15 @@ function ContinueWidget({ lib, now }) {
         <Play size={22} fill="currentColor" />
       </div>
       <div className="flex-1 min-w-0">
-        <div className="text-label-md text-on-surface-variant truncate">Вернуться к изучению{target.mode ? ` · ${target.mode}` : ""}</div>
+        <div className="text-label-md text-on-surface-variant truncate">
+          {t("home.continueStudying")}
+          {target.mode ? ` · ${target.mode}` : ""}
+        </div>
         <div className="text-title-md truncate">{target.title}</div>
         <div className="text-body-sm text-on-surface-variant">{target.sub}</div>
       </div>
-      <button type="button" className="fc-btn fc-btn-filled shrink-0 px-4 sm:px-6" onClick={() => navigate(target.path)} aria-label={`Продолжить: ${target.title}`}>
-        <span className="hidden sm:inline">Продолжить</span>
+      <button type="button" className="fc-btn fc-btn-filled shrink-0 px-4 sm:px-6" onClick={() => navigate(target.path)} aria-label={t("home.continueAria", { title: target.title })}>
+        <span className="hidden sm:inline">{t("home.continue")}</span>
         <ArrowRight size={20} />
       </button>
     </section>
@@ -75,6 +81,7 @@ function ContinueWidget({ lib, now }) {
 export default function HomeScreen() {
   const lib = useLibrary();
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const { prompt } = useDialogs();
   const toast = useToast();
   const now = useNow();
@@ -87,10 +94,10 @@ export default function HomeScreen() {
   }, [lib.decks, query]);
 
   const newFolder = async () => {
-    const name = await prompt({ title: "Новая папка", label: "Название", placeholder: "Например, Georgian", confirmLabel: "Создать" });
+    const name = await prompt({ title: t("folder.new.title"), label: t("folder.new.label"), placeholder: t("folder.new.placeholder"), confirmLabel: t("folder.new.confirm") });
     if (!name) return;
     const id = await lib.actions.createFolder({ name });
-    toast(`Папка «${name}» создана`);
+    toast(t("folder.created", { name }));
     navigate(`/folder/${id}`);
   };
 
@@ -106,7 +113,7 @@ export default function HomeScreen() {
           </div>
           <div className="flex-1 min-w-0">
             <div className="text-label-md text-on-surface-variant">Kartoteka</div>
-            <h1 className="text-title-lg truncate">{firstName ? `Привет, ${firstName}!` : "Привет!"}</h1>
+            <h1 className="text-title-lg truncate">{firstName ? t("home.helloName", { name: firstName }) : t("home.hello")}</h1>
           </div>
           <SyncIcon sync={lib.sync} />
         </header>
@@ -121,10 +128,10 @@ export default function HomeScreen() {
         <section className="mt-7" aria-labelledby="folders-h">
           <div className="flex items-center justify-between mb-2">
             <h2 id="folders-h" className="text-title-md">
-              Папки
+              {t("home.folders")}
             </h2>
             <button type="button" className="fc-btn fc-btn-text -mr-3" onClick={newFolder}>
-              <FolderPlus size={18} /> Новая
+              <FolderPlus size={18} /> {t("home.newFolder")}
             </button>
           </div>
           <div className="fc-hscroll gap-3 -mx-4 px-4 pb-1" style={{ scrollPaddingLeft: 16 }}>
@@ -136,7 +143,7 @@ export default function HomeScreen() {
                 <span className="min-w-0">
                   <span className="block text-title-md truncate">{f.name}</span>
                   <span className="block text-body-sm text-on-surface-variant fc-tabular">
-                    {f.deckIds.length} {plural(f.deckIds.length, ["набор", "набора", "наборов"])}
+                    {t("folder.setCount", { count: f.deckIds.length })}
                   </span>
                 </span>
               </Link>
@@ -145,7 +152,7 @@ export default function HomeScreen() {
               <span className="w-11 h-11 rounded-2xl bg-surface-container-high flex items-center justify-center">
                 <Plus size={22} />
               </span>
-              <span className="text-title-sm text-left">Создать папку</span>
+              <span className="text-title-sm text-left">{t("home.createFolder")}</span>
             </button>
           </div>
         </section>
@@ -154,33 +161,33 @@ export default function HomeScreen() {
         <section className="mt-7 pb-6" aria-labelledby="sets-h">
           <div className="flex items-center justify-between mb-2">
             <h2 id="sets-h" className="text-title-md">
-              Мои наборы
+              {t("home.mySets")}
             </h2>
             <Link to="/create" className="fc-btn fc-btn-text -mr-3">
-              <Plus size={18} /> Создать
+              <Plus size={18} /> {t("nav.create")}
             </Link>
           </div>
           {lib.decks.length > 6 ? (
             <div className="relative mb-3">
               <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant pointer-events-none" />
               <label htmlFor="home-search" className="sr-only">
-                Поиск наборов
+                {t("folderScreen.searchSets")}
               </label>
-              <input id="home-search" type="search" className="fc-input rounded-full bg-surface-container-high border-transparent" style={{ paddingLeft: "2.75rem" }} placeholder="Поиск наборов" value={query} onChange={(e) => setQuery(e.target.value)} />
+              <input id="home-search" type="search" className="fc-input rounded-full bg-surface-container-high border-transparent" style={{ paddingLeft: "2.75rem" }} placeholder={t("folderScreen.searchSets")} value={query} onChange={(e) => setQuery(e.target.value)} />
             </div>
           ) : null}
           {lib.decks.length === 0 ? (
             <EmptyPanel
               icon={Archive}
-              title="Картотека пуста"
-              body="Создайте первый набор: впишите слова вручную или вставьте готовый список «слово — перевод — пример»."
+              title={t("home.emptyTitle")}
+              body={t("home.emptyBody")}
               actions={
                 <>
                   <Link to="/create" className="fc-btn fc-btn-filled">
-                    <Plus size={18} /> Создать набор
+                    <Plus size={18} /> {t("home.createSet")}
                   </Link>
                   <Link to="/create?import=1" className="fc-btn fc-btn-outlined">
-                    <Upload size={18} /> Вставить список
+                    <Upload size={18} /> {t("home.pasteList")}
                   </Link>
                 </>
               }
@@ -190,7 +197,7 @@ export default function HomeScreen() {
               {decks.map((d) => (
                 <DeckListItem key={d.id} deck={d} now={now} />
               ))}
-              {!decks.length ? <p className="text-body-md text-on-surface-variant py-4 text-center">Ничего не найдено</p> : null}
+              {!decks.length ? <p className="text-body-md text-on-surface-variant py-4 text-center">{t("common.nothingFound")}</p> : null}
             </div>
           )}
         </section>

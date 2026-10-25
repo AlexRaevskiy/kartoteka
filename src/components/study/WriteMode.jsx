@@ -13,6 +13,7 @@
  * Partial credit = Leitner grade "almost" (card keeps its box; see PARTIAL_CREDIT_POLICY).
  */
 import React, { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Check, Eye, Lightbulb, Quote, RotateCcw, X } from "lucide-react";
 import { BoxBadge, ExampleSentence, SpeakButton } from "../ui.jsx";
 import DiffView from "./DiffView.jsx";
@@ -23,6 +24,7 @@ import { nextBox } from "../../lib/leitner.js";
 import { cx } from "../../lib/utils.js";
 
 export default function WriteMode({ card, deck, reverse, onAnswer, onSpeak, tracked, goal }) {
+  const { t } = useTranslation();
   const prompt = reverse ? card.definition : card.term;
   const expected = reverse ? card.term : card.definition;
   const promptLang = speechLang(deck, reverse ? "definition" : "term", prompt);
@@ -120,7 +122,7 @@ export default function WriteMode({ card, deck, reverse, onAnswer, onSpeak, trac
       {/* Prompt */}
       <div className="fc-panel p-5 sm:p-7">
         <div className="flex items-center justify-between gap-2">
-          <span className="fc-eyebrow">{reverse ? "Напишите термин" : "Напишите определение"}</span>
+          <span className="fc-eyebrow">{reverse ? t("write.typeTerm") : t("write.typeDefinition")}</span>
           <div className="flex items-center gap-1">
             <BoxBadge box={card.box} />
             <SpeakButton text={prompt} lang={promptLang} onSpeak={onSpeak} />
@@ -141,7 +143,7 @@ export default function WriteMode({ card, deck, reverse, onAnswer, onSpeak, trac
       {/* Answer field */}
       <div className="flex flex-col gap-2">
         <label htmlFor={`write-${card.id}`} className="sr-only">
-          Your answer
+          {t("write.yourAnswer")}
         </label>
         <div key={shakeKey} className={cx("flex gap-2", shakeKey > 0 && phase !== "input" && phase !== "correct" && "fc-shake")}>
           <input
@@ -152,7 +154,7 @@ export default function WriteMode({ card, deck, reverse, onAnswer, onSpeak, trac
             value={value}
             readOnly={phase !== "input"}
             onChange={(e) => setValue(e.target.value)}
-            placeholder={hintText || (attempt > 1 ? "Исправьте опечатку и проверьте снова" : "Ваш ответ")}
+            placeholder={hintText || (attempt > 1 ? t("write.fixTypo") : t("write.yourAnswer"))}
             autoComplete="off"
             autoCorrect="off"
             autoCapitalize="off"
@@ -162,7 +164,7 @@ export default function WriteMode({ card, deck, reverse, onAnswer, onSpeak, trac
           />
           {phase === "input" ? (
             <button type="submit" className="fc-btn fc-btn-primary px-5" disabled={!value.trim()}>
-              Проверить
+              {t("write.check")}
             </button>
           ) : null}
         </div>
@@ -174,19 +176,19 @@ export default function WriteMode({ card, deck, reverse, onAnswer, onSpeak, trac
               className="fc-btn fc-btn-quiet px-2 py-1 text-xs"
               onClick={() => setHintLetters((h) => Math.min(h + 1, Math.max(1, letters.length - 1)))}
             >
-              <Lightbulb size={14} /> {hintLetters ? "Ещё буква" : "Подсказка"}
+              <Lightbulb size={14} /> {hintLetters ? t("write.moreLetter") : t("write.hint")}
             </button>
             {card.exampleSentence && !showExample ? (
               <button type="button" className="fc-btn fc-btn-quiet px-2 py-1 text-xs" onClick={() => setShowExample(true)}>
-                <Quote size={14} /> Пример
+                <Quote size={14} /> {t("editor.example")}
               </button>
             ) : null}
             <button type="button" className="fc-btn fc-btn-quiet px-2 py-1 text-xs" onClick={giveUp}>
-              <Eye size={14} /> Не знаю
+              <Eye size={14} /> {t("write.dontKnow")}
             </button>
             <span className="ml-auto">
-              {attempt > 1 ? "Вторая попытка: при верном ответе — частичный зачёт. " : hintLetters ? "С подсказкой — частичный зачёт. " : ""}
-              {lang === "ka-GE" ? "Нужна грузинская раскладка." : "Регистр не важен."}
+              {attempt > 1 ? `${t("write.secondTryNote")} ` : hintLetters ? `${t("write.hintNote")} ` : ""}
+              {lang === "ka-GE" ? t("write.georgianKeyboard") : t("write.caseInsensitive")}
             </span>
           </div>
         ) : null}
@@ -204,16 +206,16 @@ export default function WriteMode({ card, deck, reverse, onAnswer, onSpeak, trac
           <div className="fc-feedback-good rounded-xl p-4 flex flex-wrap items-center gap-3 fc-in">
             <Check size={20} />
             <div className="flex-1 min-w-0">
-              <div className="font-medium">{correctGrade === "know" ? "Верно!" : "Верно, частичный зачёт"}</div>
+              <div className="font-medium">{correctGrade === "know" ? t("write.correct") : t("write.correctPartial")}</div>
               {correctGrade === "almost" ? (
                 <div className="text-sm fc-fg mt-0.5">
-                  {attempt > 1 ? "Исправлено со второй попытки." : "Была подсказка."}{" "}
-                  {tracked && goal !== "cram" ? `Карточка остаётся в коробке ${nextBox(card.box, "almost")}.` : ""}
+                  {attempt > 1 ? t("write.fixedSecondTry") : t("write.usedHint")}{" "}
+                  {tracked && goal !== "cram" ? t("write.staysInBox", { box: nextBox(card.box, "almost") }) : ""}
                 </div>
               ) : null}
             </div>
             <button type="submit" className="fc-btn fc-btn-good px-4 py-2">
-              Дальше <span className="fc-kbd hidden sm:inline">Enter</span>
+              {t("common.next")} <span className="fc-kbd hidden sm:inline">Enter</span>
             </button>
           </div>
         ) : null}
@@ -221,9 +223,9 @@ export default function WriteMode({ card, deck, reverse, onAnswer, onSpeak, trac
         {phase === "almost" ? (
           <div className="fc-feedback-warn rounded-xl p-4 fc-in flex flex-col gap-3">
             <div>
-              <div className="font-medium">Почти! {typoCount === 1 ? "Ошибка в одной букве." : `Ошибки в ${typoCount} буквах.`}</div>
+              <div className="font-medium">{t("write.almost", { count: typoCount })}</div>
               {!revealed ? (
-                <div className="text-sm fc-fg mt-0.5">Найдите опечатку и попробуйте ещё раз — или посмотрите разницу.</div>
+                <div className="text-sm fc-fg mt-0.5">{t("write.findTypo")}</div>
               ) : null}
             </div>
             {revealed ? (
@@ -235,19 +237,19 @@ export default function WriteMode({ card, deck, reverse, onAnswer, onSpeak, trac
               {!revealed ? (
                 <>
                   <button type="submit" className="fc-btn fc-btn-primary px-4 py-2.5" autoFocus>
-                    <RotateCcw size={16} /> Ещё раз <span className="fc-kbd hidden sm:inline">Enter</span>
+                    <RotateCcw size={16} /> {t("write.tryAgain")} <span className="fc-kbd hidden sm:inline">Enter</span>
                   </button>
                   <button type="button" className="fc-btn fc-btn-ghost px-4 py-2.5" onClick={() => setRevealed(true)}>
-                    <Eye size={16} /> Показать разницу
+                    <Eye size={16} /> {t("write.showDiff")}
                   </button>
                 </>
               ) : (
                 <>
                   <button type="submit" className="fc-btn fc-btn-primary px-4 py-2.5" autoFocus>
-                    <Check size={16} /> Засчитать частично <span className="fc-kbd hidden sm:inline">Enter</span>
+                    <Check size={16} /> {t("write.acceptPartial")} <span className="fc-kbd hidden sm:inline">Enter</span>
                   </button>
                   <button type="button" className="fc-btn fc-btn-ghost px-4 py-2.5" onClick={() => finish("again")}>
-                    <X size={16} /> Считать ошибкой
+                    <X size={16} /> {t("write.countWrong")}
                   </button>
                 </>
               )}
@@ -257,23 +259,23 @@ export default function WriteMode({ card, deck, reverse, onAnswer, onSpeak, trac
 
         {phase === "wrong" ? (
           <div className="fc-feedback-bad rounded-xl p-4 fc-in flex flex-col gap-3">
-            <div className="font-medium">{value.trim() ? "Неверно." : "Правильный ответ:"}</div>
+            <div className="font-medium">{value.trim() ? t("write.wrong") : t("write.correctAnswer")}</div>
             {value.trim() && result && diffIsUseful(result) ? (
               <div className="bg-surface-container-lowest rounded-xl p-3">
                 <DiffView ops={result.ops} />
               </div>
             ) : null}
             <div className="flex items-center gap-1 fc-fg text-sm flex-wrap">
-              Правильно: <b className="fc-term text-title-lg ml-1">{expected}</b>
+              {t("write.rightIs")} <b className="fc-term text-title-lg ml-1">{expected}</b>
               <SpeakButton text={expected} lang={expectedLang} onSpeak={onSpeak} />
             </div>
             <div className="flex flex-wrap gap-2">
               <button type="submit" className="fc-btn fc-btn-primary px-4 py-2.5" autoFocus>
-                Дальше <span className="fc-kbd hidden sm:inline">Enter</span>
+                {t("common.next")} <span className="fc-kbd hidden sm:inline">Enter</span>
               </button>
               {value.trim() ? (
                 <button type="button" className="fc-btn fc-btn-ghost px-4 py-2.5" onClick={() => finish("know")}>
-                  Я был прав
+                  {t("write.iWasRight")}
                 </button>
               ) : null}
             </div>

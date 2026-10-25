@@ -2,8 +2,8 @@
  * /deck/:id/study and /folder/:id/study — full-screen study session.
  *
  * Nothing but the lesson: a close button, round progress and the card. The session runs in
- * rounds (Profile → размер раунда, default 20 cards). After each round: "Итоги раунда" with
- * praise, stats, the list of mistakes, and two buttons — "Завершить" and "Продолжить"
+ * rounds (Profile → round size, default 20 cards). After each round: the round summary with
+ * praise, stats, the list of mistakes, and two buttons — "Finish" and "Continue"
  * (a new round with only the missed cards; if there were none — the next batch).
  *
  * Query: ?mode=flashcards|learn|quiz|write  &goal=memorize|cram  &starred=1  &tag=<folderTagId>
@@ -12,6 +12,7 @@
  */
 import React, { useCallback, useEffect, useMemo, useRef } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { ArrowLeftRight, Brain, CalendarCheck, GraduationCap, Layers, ListChecks, Lock, PenLine, SearchX, Sparkles, Timer, X } from "lucide-react";
 import { useLibrary } from "../data/LibraryProvider.jsx";
 import { useDeckResource, useDeckSet, useFolderResource } from "../data/useRemote.js";
@@ -26,15 +27,17 @@ import RoundSummary from "../components/study/RoundSummary.jsx";
 import { useRounds } from "../hooks/useRounds.js";
 import { useStudyTimer } from "../hooks/useStudyTimer.js";
 import { toItems } from "../lib/rounds.js";
-import { deckStats, plural, relativeDay } from "../lib/leitner.js";
+import { deckStats } from "../lib/leitner.js";
+import { relativeDay } from "../i18n/format.js";
 import { celebrate } from "../lib/celebrate.js";
 import { speak } from "../lib/speech.js";
 
+// Labels: modes.<id>.label / modes.<id>.hint in the locale files.
 export const MODES = [
-  { id: "flashcards", label: "Карточки", hint: "Лейтнер", icon: Layers },
-  { id: "learn", label: "Заучивание", hint: "Тест + письмо", icon: GraduationCap },
-  { id: "quiz", label: "Тест", hint: "4 варианта", icon: ListChecks },
-  { id: "write", label: "Письмо", hint: "С проверкой", icon: PenLine },
+  { id: "flashcards", icon: Layers },
+  { id: "learn", icon: GraduationCap },
+  { id: "quiz", icon: ListChecks },
+  { id: "write", icon: PenLine },
 ];
 const MODE_COMPONENTS = { flashcards: FlashcardMode, learn: LearnMode, quiz: QuizMode, write: WriteMode };
 
@@ -52,23 +55,27 @@ export default function StudyScreen({ kind }) {
 
 function Blocked({ icon, title, body, backPath }) {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   return (
     <div className="fc-gutter min-h-screen flex items-center justify-center">
-      <EmptyPanel icon={icon} title={title} body={body} className="max-w-md w-full" actions={<button type="button" className="fc-btn fc-btn-filled" onClick={() => navigate(backPath, { replace: true })}>Назад</button>} />
+      <EmptyPanel icon={icon} title={title} body={body} className="max-w-md w-full" actions={<button type="button" className="fc-btn fc-btn-filled" onClick={() => navigate(backPath, { replace: true })}>{t("common.back")}</button>} />
     </div>
   );
 }
 
-const Loading = () => (
-  <div className="min-h-screen flex items-center justify-center" role="status" aria-label="Загрузка">
-    <Spinner size={28} />
-  </div>
-);
+function Loading() {
+  const { t } = useTranslation();
+  return (
+    <div className="min-h-screen flex items-center justify-center" role="status" aria-label={t("common.loading")}>
+      <Spinner size={28} />
+    </div>
+  );
+}
 
 /**
  * Keeps the last ready value while a session is running. Grading writes progress, and the
  * resulting snapshots can briefly report "loading"; unmounting the session then would throw the
- * learner out of the round (e.g. right after "Продолжить").
+ * learner out of the round (e.g. right after "Continue").
  */
 function useStickyReady(ready, value) {
   const last = useRef(null);
@@ -77,6 +84,7 @@ function useStickyReady(ready, value) {
 }
 
 function DeckStudy({ id, opts }) {
+  const { t } = useTranslation();
   const res = useDeckResource(id);
   const deck = res.deck;
   const items = useMemo(() => {
@@ -87,22 +95,23 @@ function DeckStudy({ id, opts }) {
   const live = useStickyReady(res.status === "ready" && !!deck, { deck, items });
   if (!live) {
     if (res.status === "loading") return <Loading />;
-    return <Blocked icon={res.status === "locked" || res.status === "private" ? Lock : SearchX} title="Набор недоступен" backPath={`/deck/${id}`} />;
+    return <Blocked icon={res.status === "locked" || res.status === "private" ? Lock : SearchX} title={t("study.deckUnavailable")} backPath={`/deck/${id}`} />;
   }
   return <Session key={`${opts.mode}-${opts.goal}-${opts.starred}`} items={live.items} source={{ kind: "deck", id, title: live.deck.title }} backPath={`/deck/${id}`} opts={opts} />;
 }
 
 function FolderStudy({ id, opts }) {
+  const { t } = useTranslation();
   const fres = useFolderResource(id);
   const folder = fres.folder;
-  const tag = folder?.tags.find((t) => t.id === opts.tag);
+  const tag = folder?.tags.find((tg) => tg.id === opts.tag);
   const ids = useMemo(() => (folder ? (tag ? folder.deckIds.filter((d) => tag.deckIds.includes(d)) : folder.deckIds) : []), [folder, tag]);
   const set = useDeckSet(ids);
   const items = useMemo(() => set.decks.flatMap((d) => toItems(d, opts.starred ? d.cards.filter((c) => d.starred.has(c.id)) : d.cards)), [set.decks, opts.starred]);
   const live = useStickyReady(fres.status === "ready" && !!folder && !set.loading, { items, title: tag ? `${folder?.name} · ${tag.name}` : folder?.name });
   if (!live) {
     if (fres.status === "loading" || set.loading) return <Loading />;
-    return <Blocked icon={Lock} title="Папка недоступна" backPath={`/folder/${id}`} />;
+    return <Blocked icon={Lock} title={t("study.folderUnavailable")} backPath={`/folder/${id}`} />;
   }
   return (
     <Session
@@ -119,6 +128,7 @@ function Session({ items, source, backPath, opts }) {
   const lib = useLibrary();
   const toast = useToast();
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const [, setParams] = useSearchParams();
   const { mode, goal } = opts;
   const reverse = !!lib.settings.reverse;
@@ -131,7 +141,7 @@ function Session({ items, source, backPath, opts }) {
     (res) => {
       if (res?.justMetGoal) {
         celebrate("mastery");
-        toast("Цель на сегодня выполнена! Огонёк горит 🔥", { icon: Sparkles, duration: 5000 });
+        toast(t("study.goalMet"), { icon: Sparkles, duration: 5000 });
         return true;
       }
       return false;
@@ -145,7 +155,7 @@ function Session({ items, source, backPath, opts }) {
       lib.actions.logReview();
       if (res?.after?.box === 5 && res.before.box === 4) {
         celebrate("card");
-        toast(`«${item.card.term}» — выучено!`, { icon: Sparkles });
+        toast(t("study.cardMastered", { term: item.card.term }), { icon: Sparkles });
       }
     },
     [lib.actions, goal, toast]
@@ -160,7 +170,7 @@ function Session({ items, source, backPath, opts }) {
   );
 
   useStudyTimer((seconds) => {
-    // Also runs while the screen unmounts ("Завершить"), so it must never throw.
+    // Also runs while the screen unmounts ("Finish"), so it must never throw.
     try {
       goalCelebration(lib.actions.recordActivity({ seconds }));
     } catch (err) {
@@ -189,12 +199,12 @@ function Session({ items, source, backPath, opts }) {
   );
 
   const menu = [
-    ...MODES.map((m) => ({ label: `${m.id === mode ? "✓ " : ""}${m.label}`, icon: m.icon, onClick: () => m.id !== mode && setQuery({ mode: m.id }) })),
+    ...MODES.map((m) => ({ label: `${m.id === mode ? "✓ " : ""}${t(`modes.${m.id}.label`)}`, icon: m.icon, onClick: () => m.id !== mode && setQuery({ mode: m.id }) })),
     { divider: true },
-    { label: reverse ? "Сначала термин" : "Сначала определение", icon: ArrowLeftRight, onClick: () => lib.actions.updateSettings({ reverse: !reverse }) },
+    { label: reverse ? t("study.termFirst") : t("study.definitionFirst"), icon: ArrowLeftRight, onClick: () => lib.actions.updateSettings({ reverse: !reverse }) },
     goal === "memorize"
-      ? { label: "Cram for a test (всё подряд)", icon: Timer, onClick: () => setQuery({ goal: "cram" }) }
-      : { label: "Memorize it all (Лейтнер)", icon: Brain, onClick: () => setQuery({ goal: "memorize" }) },
+      ? { label: t("study.switchToCram"), icon: Timer, onClick: () => setQuery({ goal: "cram" }) }
+      : { label: t("study.switchToMemorize"), icon: Brain, onClick: () => setQuery({ goal: "memorize" }) },
   ];
 
   const total = rounds.items?.length || 0;
@@ -204,33 +214,33 @@ function Session({ items, source, backPath, opts }) {
 
   return (
     <div className="min-h-screen flex flex-col bg-surface">
-      <SEO title={`${source.title} · учёба | Kartoteka`} noindex />
+      <SEO title={`${source.title} · ${t("study.seo")} | Kartoteka`} noindex />
       {/* Minimal top bar: exit · title/round · menu */}
       <header className="fc-topbar sticky top-0 z-30">
         <div className="fc-gutter">
           <div className="mx-auto max-w-2xl flex items-center gap-2 h-16">
-            <button type="button" className="fc-btn fc-icon-btn -ml-3 text-on-surface" aria-label="Выйти" onClick={exit}>
+            <button type="button" className="fc-btn fc-icon-btn -ml-3 text-on-surface" aria-label={t("study.exit")} onClick={exit}>
               <X size={24} />
             </button>
             <div className="flex-1 min-w-0 text-center">
               <div className="text-title-sm truncate">{source.title}</div>
               <div className="text-label-md text-on-surface-variant fc-tabular">
                 {rounds.phase === "summary"
-                  ? "Итоги раунда"
+                  ? t("study.summary")
                   : rounds.phase === "empty"
                   ? goal === "cram"
-                    ? "Зубрёжка"
-                    : "Лейтнер"
-                  : `${rounds.kind === "retry" ? "Повтор ошибок" : `Раунд ${rounds.roundNo}`} · ${Math.min(done + 1, total)}/${total}`}
+                    ? t("study.cram")
+                    : t("study.leitner")
+                  : `${rounds.kind === "retry" ? t("study.retryRound") : t("study.round", { n: rounds.roundNo })} · ${Math.min(done + 1, total)}/${total}`}
               </div>
             </div>
             <div className="-mr-3">
-              <Menu items={menu} label="Режим и настройки" />
+              <Menu items={menu} label={t("study.menu")} />
             </div>
           </div>
         </div>
         <div className="fc-gutter pb-2">
-          <ProgressBar value={total ? (done / total) * 100 : 0} className="mx-auto max-w-2xl" label="Прогресс раунда" color={rounds.kind === "retry" ? "var(--md-warning)" : "var(--md-primary)"} />
+          <ProgressBar value={total ? (done / total) * 100 : 0} className="mx-auto max-w-2xl" label={t("study.roundProgress")} color={rounds.kind === "retry" ? "var(--md-warning)" : "var(--md-primary)"} />
         </div>
       </header>
 
@@ -265,24 +275,24 @@ function Session({ items, source, backPath, opts }) {
 
           {rounds.phase === "empty" ? (
             items.length === 0 ? (
-              <EmptyPanel icon={SearchX} title={opts.starred ? "Нет отмеченных карточек" : "Здесь пока нет карточек"} actions={<button type="button" className="fc-btn fc-btn-filled" onClick={exit}>Назад</button>} />
+              <EmptyPanel icon={SearchX} title={opts.starred ? t("study.noStarred") : t("study.noCards")} actions={<button type="button" className="fc-btn fc-btn-filled" onClick={exit}>{t("common.back")}</button>} />
             ) : goal === "memorize" ? (
               <EmptyPanel
                 icon={CalendarCheck}
                 tone="good"
-                title={rounds.roundNo > 1 ? "На сегодня всё пройдено 🎉" : "На сегодня всё повторено 🎉"}
+                title={rounds.roundNo > 1 ? t("study.allDoneToday") : t("study.allReviewedToday")}
                 body={
                   stats.nextDue
-                    ? `Следующий повтор ${relativeDay(stats.nextDue)}: ${stats.nextDueCount} ${plural(stats.nextDueCount, ["карточка", "карточки", "карточек"])}. Хотите позаниматься ещё — включите зубрёжку, она не ломает расписание.`
-                    : "Все карточки выучены. Можно повторить их в режиме зубрёжки."
+                    ? t("study.nextReview", { when: relativeDay(t, stats.nextDue), cards: t("deck.cardCount", { count: stats.nextDueCount }) })
+                    : t("study.allMastered")
                 }
                 actions={
                   <>
                     <button type="button" className="fc-btn fc-btn-filled" onClick={() => setQuery({ goal: "cram" })}>
-                      <Timer size={18} /> Cram: повторить всё
+                      <Timer size={18} /> {t("study.cramAll")}
                     </button>
                     <button type="button" className="fc-btn fc-btn-outlined" onClick={exit}>
-                      Завершить
+                      {t("study.finish")}
                     </button>
                   </>
                 }
@@ -291,15 +301,15 @@ function Session({ items, source, backPath, opts }) {
               <EmptyPanel
                 icon={CalendarCheck}
                 tone="good"
-                title="Вы прошли все карточки"
-                body="Можно начать заново или вернуться к обычному расписанию Лейтнера."
+                title={t("study.passedAll")}
+                body={t("study.passedAllBody")}
                 actions={
                   <>
                     <button type="button" className="fc-btn fc-btn-filled" onClick={rounds.restart}>
-                      Ещё круг
+                      {t("study.again")}
                     </button>
                     <button type="button" className="fc-btn fc-btn-outlined" onClick={exit}>
-                      Завершить
+                      {t("study.finish")}
                     </button>
                   </>
                 }

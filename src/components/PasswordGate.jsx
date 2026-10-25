@@ -4,6 +4,7 @@
  * if the hash matches the owner's secret, then the deck becomes readable.
  */
 import React, { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { KeyRound, Lock } from "lucide-react";
 import * as store from "../data/store.js";
 import { useLibrary } from "../data/LibraryProvider.jsx";
@@ -12,6 +13,7 @@ import { Spinner } from "./ui.jsx";
 
 export default function PasswordGate({ deckId, stub, onUnlocked }) {
   const lib = useLibrary();
+  const { t } = useTranslation();
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -25,7 +27,7 @@ export default function PasswordGate({ deckId, stub, onUnlocked }) {
       await store.createGrant(deckId, lib.uid, await hashPassword(deckId, password));
       onUnlocked();
     } catch (err) {
-      setError(err?.code === "permission-denied" ? "Неверный пароль." : err?.message || "Не получилось. Проверьте соединение.");
+      setError(err?.code === "permission-denied" ? t("passwordGate.wrong") : err?.message || t("passwordGate.failed"));
     } finally {
       setBusy(false);
     }
@@ -37,14 +39,15 @@ export default function PasswordGate({ deckId, stub, onUnlocked }) {
         <Lock size={26} />
       </div>
       <div>
-        <h1 className="text-headline-sm">{stub?.title || "Защищённый набор"}</h1>
+        <h1 className="text-headline-sm">{stub?.title || t("passwordGate.title")}</h1>
         <p className="text-body-md text-on-surface-variant mt-1">
-          {stub?.ownerName ? `Автор: ${stub.ownerName}. ` : ""}Этот набор открыт только по паролю. Спросите его у автора.
+          {stub?.ownerName ? `${t("passwordGate.author", { name: stub.ownerName })} ` : ""}
+          {t("passwordGate.body")}
         </p>
       </div>
       <div>
         <label htmlFor="deck-password" className="fc-label">
-          Пароль
+          {t("auth.email.password")}
         </label>
         <div className="relative mt-1">
           <KeyRound size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant pointer-events-none" />
@@ -66,7 +69,7 @@ export default function PasswordGate({ deckId, stub, onUnlocked }) {
         ) : null}
       </div>
       <button type="submit" className="fc-btn fc-btn-filled" disabled={!password || busy}>
-        {busy ? <Spinner size={16} /> : null} Открыть
+        {busy ? <Spinner size={16} /> : null} {t("passwordGate.open")}
       </button>
     </form>
   );

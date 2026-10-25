@@ -10,6 +10,7 @@
  */
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { ArrowLeftRight, Check, FileText, Plus, Quote, Settings, Trash2, X, Lock, SearchX } from "lucide-react";
 import { useLibrary } from "../data/LibraryProvider.jsx";
 import { useDeckResource } from "../data/useRemote.js";
@@ -43,6 +44,7 @@ export default function EditorScreen() {
 function EditExisting({ id }) {
   const lib = useLibrary();
   const res = useDeckResource(id);
+  const { t } = useTranslation();
   const [allowed, setAllowed] = useState(null);
   useEffect(() => {
     if (res.status !== "ready" || !res.deck) return;
@@ -61,7 +63,7 @@ function EditExisting({ id }) {
   if (res.status !== "ready" || allowed === "none") {
     return (
       <div className="fc-gutter pt-16">
-        <EmptyPanel icon={res.status === "ready" ? Lock : SearchX} title={res.status === "ready" ? "Нет прав на редактирование" : "Набор не найден"} className="max-w-md mx-auto" />
+        <EmptyPanel icon={res.status === "ready" ? Lock : SearchX} title={res.status === "ready" ? t("editor.noAccess") : t("deck.notFoundTitle")} className="max-w-md mx-auto" />
       </div>
     );
   }
@@ -72,6 +74,7 @@ function Editor({ initial, asEditor = false }) {
   const lib = useLibrary();
   const navigate = useNavigate();
   const toast = useToast();
+  const { t } = useTranslation();
   const { confirm } = useDialogs();
   const [params] = useSearchParams();
 
@@ -105,7 +108,7 @@ function Editor({ initial, asEditor = false }) {
     setDraft((d) => ({ ...d, cards: d.cards.map((c) => (c.id === id ? { ...c, ...patch } : c)) }));
   };
   const addCard = () => {
-    if (draft.cards.length >= MAX_CARDS_PER_DECK) return toast(`В наборе может быть до ${MAX_CARDS_PER_DECK} карточек`);
+    if (draft.cards.length >= MAX_CARDS_PER_DECK) return toast(t("editor.maxCards", { max: MAX_CARDS_PER_DECK }));
     set({ cards: [...draft.cards, newCard()] });
     requestAnimationFrame(() => lastCardRef.current?.focus());
   };
@@ -115,19 +118,19 @@ function Editor({ initial, asEditor = false }) {
   const filled = draft.cards.filter((c) => c.term.trim() && c.definition.trim());
 
   const close = async () => {
-    if (dirty.current && !(await confirm({ title: "Выйти без сохранения?", message: "Изменения будут потеряны.", confirmLabel: "Выйти", danger: true }))) return;
+    if (dirty.current && !(await confirm({ title: t("editor.leaveConfirm.title"), message: t("editor.leaveConfirm.message"), confirmLabel: t("editor.leaveConfirm.confirm"), danger: true }))) return;
     if (window.history.state?.idx > 0) navigate(-1);
     else navigate(initial ? `/deck/${initial.id}` : "/", { replace: true });
   };
 
   const save = async () => {
     const e = {};
-    if (!draft.title.trim()) e.title = "Введите название";
-    if (!filled.length) e.cards = "Добавьте хотя бы одну карточку с термином и определением";
+    if (!draft.title.trim()) e.title = t("editor.errors.title");
+    if (!filled.length) e.cards = t("editor.errors.noCards");
     const half = draft.cards.find((c) => !!c.term.trim() !== !!c.definition.trim());
-    if (half) e.cards = "У некоторых карточек не заполнен термин или определение";
-    if (!asEditor && needsPassword && !hasPassword && password.length < 4) e.password = "Задайте пароль (минимум 4 символа)";
-    if (password && password.length < 4) e.password = "Минимум 4 символа";
+    if (half) e.cards = t("editor.errors.halfCards");
+    if (!asEditor && needsPassword && !hasPassword && password.length < 4) e.password = t("editor.errors.setPassword");
+    if (password && password.length < 4) e.password = t("editor.errors.passwordShort");
     setErrors(e);
     if (Object.keys(e).length) {
       if (e.password) setSheet("settings");
@@ -139,7 +142,7 @@ function Editor({ initial, asEditor = false }) {
       const passwordHash = !asEditor && needsPassword && password ? await hashPassword(id, password) : undefined;
       await lib.actions.saveDeck({ ...draft, id, cards: filled }, { passwordHash, asEditor });
       dirty.current = false;
-      toast(initial ? "Изменения сохранены" : "Набор создан");
+      toast(initial ? t("editor.saved") : t("editor.created"));
       navigate(`/deck/${id}`, { replace: true });
     } catch (err) {
       lib.report(err);
@@ -154,25 +157,25 @@ function Editor({ initial, asEditor = false }) {
     const keep = draft.cards.filter((c) => c.term.trim() || c.definition.trim());
     set({ cards: [...keep, ...toAdd] });
     setShowExamples((s) => new Set([...s, ...toAdd.filter((c) => c.exampleSentence).map((c) => c.id)]));
-    toast(`Добавлено карточек: ${toAdd.length}`);
+    toast(t("editor.imported", { count: toAdd.length }));
     setSheet(null);
   };
 
   return (
     <div className="min-h-screen pb-28">
-      <SEO title="Редактор набора | Kartoteka" noindex />
+      <SEO title={`${t("editor.seoTitle")} | Kartoteka`} noindex />
       <header className="fc-topbar sticky top-0 z-30 is-scrolled">
         <div className="fc-gutter">
           <div className="mx-auto max-w-3xl flex items-center gap-1 h-16">
-            <button type="button" className="fc-btn fc-icon-btn -ml-3 text-on-surface" aria-label="Закрыть" onClick={close}>
+            <button type="button" className="fc-btn fc-icon-btn -ml-3 text-on-surface" aria-label={t("common.close")} onClick={close}>
               <X size={24} />
             </button>
-            <h1 className="flex-1 text-title-md sm:text-title-lg truncate">{initial ? "Редактировать набор" : "Новый набор"}</h1>
-            <button type="button" className="fc-btn fc-icon-btn" aria-label="Настройки набора" onClick={() => setSheet("settings")}>
+            <h1 className="flex-1 text-title-md sm:text-title-lg truncate">{initial ? t("editor.editTitle") : t("editor.newTitle")}</h1>
+            <button type="button" className="fc-btn fc-icon-btn" aria-label={t("editor.settings")} onClick={() => setSheet("settings")}>
               <Settings size={22} />
             </button>
             <button type="button" className="fc-btn fc-btn-filled ml-1" onClick={save} disabled={saving}>
-              {saving ? <Spinner size={16} /> : <Check size={18} />} Готово
+              {saving ? <Spinner size={16} /> : <Check size={18} />} {t("common.done")}
             </button>
           </div>
         </div>
@@ -185,7 +188,7 @@ function Editor({ initial, asEditor = false }) {
               id="deck-title"
               className="fc-input fc-input-underline text-headline-sm"
               style={{ fontSize: "1.5rem" }}
-              placeholder="Название набора"
+              placeholder={t("editor.titlePlaceholder")}
               value={draft.title}
               maxLength={200}
               onChange={(e) => set({ title: e.target.value })}
@@ -193,26 +196,26 @@ function Editor({ initial, asEditor = false }) {
               autoFocus={!initial}
             />
             <label htmlFor="deck-title" className={cx("fc-label block mt-1", errors.title && "fc-bad")}>
-              {errors.title || "НАЗВАНИЕ"}
+              {errors.title || t("editor.titleLabel")}
             </label>
           </div>
           <div>
-            <input id="deck-desc" className="fc-input fc-input-underline" placeholder="Описание (необязательно)" value={draft.description} maxLength={500} onChange={(e) => set({ description: e.target.value })} />
+            <input id="deck-desc" className="fc-input fc-input-underline" placeholder={t("editor.descriptionPlaceholder")} value={draft.description} maxLength={500} onChange={(e) => set({ description: e.target.value })} />
             <label htmlFor="deck-desc" className="fc-label block mt-1">
-              ОПИСАНИЕ
+              {t("editor.descriptionLabel")}
             </label>
           </div>
 
           <div className="flex flex-wrap gap-2">
             <button type="button" className="fc-btn fc-btn-tonal" onClick={() => setSheet("import")}>
-              <FileText size={18} /> Импорт списка
+              <FileText size={18} /> {t("editor.import")}
             </button>
             <button
               type="button"
               className="fc-btn fc-btn-outlined"
               onClick={() => set({ cards: draft.cards.map((c) => ({ ...c, term: c.definition, definition: c.term })), termLang: draft.defLang, defLang: draft.termLang })}
             >
-              <ArrowLeftRight size={18} /> Поменять стороны
+              <ArrowLeftRight size={18} /> {t("editor.swapSides")}
             </button>
           </div>
 
@@ -232,10 +235,10 @@ function Editor({ initial, asEditor = false }) {
                     <div className="flex items-center -mr-3">
                       {!exampleOpen ? (
                         <button type="button" className="fc-btn fc-btn-text" onClick={() => setShowExamples((s) => new Set([...s, c.id]))}>
-                          <Quote size={16} /> Пример
+                          <Quote size={16} /> {t("editor.example")}
                         </button>
                       ) : null}
-                      <button type="button" className="fc-btn fc-icon-btn" aria-label={`Удалить карточку ${i + 1}`} onClick={() => removeCard(c.id)}>
+                      <button type="button" className="fc-btn fc-icon-btn" aria-label={t("editor.deleteCard", { n: i + 1 })} onClick={() => removeCard(c.id)}>
                         <Trash2 size={20} />
                       </button>
                     </div>
@@ -251,7 +254,8 @@ function Editor({ initial, asEditor = false }) {
                         onChange={(e) => setCard(c.id, { term: e.target.value })}
                       />
                       <label htmlFor={`term-${c.id}`} className="fc-label block mt-1">
-                        ТЕРМИН{draft.termLang !== "auto" ? ` · ${languageLabel(draft.termLang)}` : ""}
+                        {t("editor.termLabel")}
+                        {draft.termLang !== "auto" ? ` · ${languageLabel(draft.termLang)}` : ""}
                       </label>
                     </div>
                     <div>
@@ -269,7 +273,8 @@ function Editor({ initial, asEditor = false }) {
                         }}
                       />
                       <label htmlFor={`def-${c.id}`} className="fc-label block mt-1">
-                        ОПРЕДЕЛЕНИЕ{draft.defLang !== "auto" ? ` · ${languageLabel(draft.defLang)}` : ""}
+                        {t("editor.definitionLabel")}
+                        {draft.defLang !== "auto" ? ` · ${languageLabel(draft.defLang)}` : ""}
                       </label>
                     </div>
                   </div>
@@ -277,7 +282,7 @@ function Editor({ initial, asEditor = false }) {
                     <div className="mt-4">
                       <input id={`ex-${c.id}`} className="fc-input fc-input-underline" value={c.exampleSentence} onChange={(e) => setCard(c.id, { exampleSentence: e.target.value })} />
                       <label htmlFor={`ex-${c.id}`} className="fc-label block mt-1">
-                        ПРИМЕР ПРЕДЛОЖЕНИЯ
+                        {t("editor.exampleLabel")}
                       </label>
                     </div>
                   ) : null}
@@ -287,10 +292,10 @@ function Editor({ initial, asEditor = false }) {
           </ol>
 
           <button type="button" className="fc-btn fc-btn-outlined fc-btn-lg w-full border-dashed" onClick={addCard}>
-            <Plus size={20} /> Добавить карточку
+            <Plus size={20} /> {t("editor.addCard")}
           </button>
           <p className="text-body-sm text-on-surface-variant text-center fc-tabular">
-            {filled.length} из {MAX_CARDS_PER_DECK} карточек заполнено
+            {t("editor.filled", { count: filled.length, max: MAX_CARDS_PER_DECK })}
           </p>
         </div>
       </main>
@@ -306,60 +311,61 @@ function Editor({ initial, asEditor = false }) {
 /* ---------- ⚙ Settings ---------- */
 function SettingsSheet({ draft, set, asEditor, password, setPassword, hasPassword, passwordError, onClose }) {
   const needsPassword = draft.visibility === "password" || draft.editPolicy === "password";
+  const { t } = useTranslation();
   return (
-    <Sheet title="Настройки набора" onClose={onClose} labelId="settings-title" footer={<button type="button" className="fc-btn fc-btn-filled" onClick={onClose}>Готово</button>}>
+    <Sheet title={t("editor.settings")} onClose={onClose} labelId="settings-title" footer={<button type="button" className="fc-btn fc-btn-filled" onClick={onClose}>{t("common.done")}</button>}>
       <div className="grid gap-4 sm:grid-cols-2">
         <div>
           <label htmlFor="term-lang" className="fc-label">
-            Язык терминов
+            {t("info.termLang")}
           </label>
           <select id="term-lang" className="fc-input mt-1" value={draft.termLang} onChange={(e) => set({ termLang: e.target.value })}>
             {LANGUAGES.map((l) => (
               <option key={l.code} value={l.code}>
-                {l.label}
+                {languageLabel(l.code)}
               </option>
             ))}
           </select>
         </div>
         <div>
           <label htmlFor="def-lang" className="fc-label">
-            Язык определений
+            {t("info.defLang")}
           </label>
           <select id="def-lang" className="fc-input mt-1" value={draft.defLang} onChange={(e) => set({ defLang: e.target.value })}>
             {LANGUAGES.map((l) => (
               <option key={l.code} value={l.code}>
-                {l.label}
+                {languageLabel(l.code)}
               </option>
             ))}
           </select>
         </div>
       </div>
-      <p className="text-body-sm text-on-surface-variant -mt-2">Язык нужен для озвучки с правильным акцентом.</p>
+      <p className="text-body-sm text-on-surface-variant -mt-2">{t("editor.langHint")}</p>
 
       {asEditor ? (
-        <p className="text-body-md text-on-surface-variant">Доступ к набору может менять только автор.</p>
+        <p className="text-body-md text-on-surface-variant">{t("editor.onlyAuthorAccess")}</p>
       ) : (
         <>
           <fieldset>
-            <legend className="text-title-sm mb-1">Кто может смотреть</legend>
+            <legend className="text-title-sm mb-1">{t("editor.whoCanView")}</legend>
             {VISIBILITY_OPTIONS.map((o) => (
               <label key={o.value} className="fc-list-item rounded-xl -mx-2 cursor-pointer">
                 <input type="radio" name="visibility" className="w-5 h-5" style={{ accentColor: "var(--md-primary)" }} checked={draft.visibility === o.value} onChange={() => set({ visibility: o.value })} />
                 <span>
-                  <span className="block text-body-lg">{o.label}</span>
-                  <span className="block text-body-sm text-on-surface-variant">{o.hint}</span>
+                  <span className="block text-body-lg">{t(`visibility.${o.value}.label`)}</span>
+                  <span className="block text-body-sm text-on-surface-variant">{t(`visibility.${o.value}.hint`)}</span>
                 </span>
               </label>
             ))}
           </fieldset>
           <fieldset>
-            <legend className="text-title-sm mb-1">Кто может редактировать</legend>
+            <legend className="text-title-sm mb-1">{t("editor.whoCanEdit")}</legend>
             {EDIT_OPTIONS.map((o) => (
               <label key={o.value} className="fc-list-item rounded-xl -mx-2 cursor-pointer">
                 <input type="radio" name="edit" className="w-5 h-5" style={{ accentColor: "var(--md-primary)" }} checked={draft.editPolicy === o.value} onChange={() => set({ editPolicy: o.value })} />
                 <span>
-                  <span className="block text-body-lg">{o.label}</span>
-                  <span className="block text-body-sm text-on-surface-variant">{o.hint}</span>
+                  <span className="block text-body-lg">{t(`editPolicy.${o.value}.label`)}</span>
+                  <span className="block text-body-sm text-on-surface-variant">{t(`editPolicy.${o.value}.hint`)}</span>
                 </span>
               </label>
             ))}
@@ -367,20 +373,20 @@ function SettingsSheet({ draft, set, asEditor, password, setPassword, hasPasswor
           {needsPassword ? (
             <div>
               <label htmlFor="deck-pass" className="fc-label">
-                Пароль набора
+                {t("editor.password")}
               </label>
               <input
                 id="deck-pass"
                 type="password"
                 autoComplete="new-password"
                 className="fc-input mt-1"
-                placeholder={hasPassword ? "Оставьте пустым, чтобы не менять" : "Минимум 4 символа"}
+                placeholder={hasPassword ? t("editor.passwordKeep") : t("editor.errors.passwordShort")}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 aria-invalid={!!passwordError}
               />
               <p className={cx("text-body-sm mt-1", passwordError ? "fc-bad" : "text-on-surface-variant")}>
-                {passwordError || "Один пароль для просмотра и редактирования. Смена пароля отзывает старый доступ."}
+                {passwordError || t("editor.passwordHint")}
               </p>
             </div>
           ) : null}
@@ -397,6 +403,7 @@ put off | postpone | Don't put off your homework.
 apple - яблоко`;
 
 function ImportSheet({ onAdd, onClose }) {
+  const { t } = useTranslation();
   const [text, setText] = useState("");
   const [swap, setSwap] = useState(false);
   const parsed = useMemo(() => parseImport(text, swap), [text, swap]);
@@ -411,40 +418,40 @@ function ImportSheet({ onAdd, onClose }) {
   return (
     <Sheet
       wide
-      title="Импорт списка"
-      subtitle="Одна карточка в строке: термин — определение — пример. Подходят табы, |, тире, = и :"
+      title={t("editor.import")}
+      subtitle={t("editor.importHint")}
       onClose={onClose}
       labelId="import-title"
       footer={
         <>
           <button type="button" className="fc-btn fc-btn-text" onClick={onClose}>
-            Отмена
+            {t("common.cancel")}
           </button>
           <button type="button" className="fc-btn fc-btn-filled" disabled={!parsed.cards.length} onClick={() => onAdd(parsed.cards)}>
-            Добавить {parsed.cards.length || ""}
+            {t("editor.add")} {parsed.cards.length || ""}
           </button>
         </>
       }
     >
       <div className="flex flex-wrap gap-2">
         <button type="button" className="fc-btn fc-btn-text -ml-3" onClick={() => setText(EXAMPLE)}>
-          Пример
+          {t("editor.example")}
         </button>
         <label className="fc-btn fc-btn-text cursor-pointer">
-          <FileText size={16} /> Открыть .txt / .csv
+          <FileText size={16} /> {t("editor.openFile")}
           <input type="file" accept=".txt,.csv,.tsv,text/plain,text/csv" className="sr-only" onChange={loadFile} />
         </label>
       </div>
-      <textarea className="fc-input fc-mono" rows={8} placeholder={EXAMPLE} value={text} onChange={(e) => setText(e.target.value)} spellCheck={false} aria-label="Список слов" autoFocus />
+      <textarea className="fc-input fc-mono" rows={8} placeholder={EXAMPLE} value={text} onChange={(e) => setText(e.target.value)} spellCheck={false} aria-label={t("editor.wordList")} autoFocus />
       <label className="inline-flex items-center gap-2 text-body-md cursor-pointer">
         <input type="checkbox" className="w-5 h-5" style={{ accentColor: "var(--md-primary)" }} checked={swap} onChange={(e) => setSwap(e.target.checked)} />
-        В моём списке сначала определение
+        {t("editor.definitionFirst")}
       </label>
       {text.trim() ? (
         <div className="bg-surface-container-high rounded-2xl p-4" aria-live="polite">
           <div className="text-title-sm">
-            Распознано: {parsed.cards.length}
-            {parsed.skipped.length ? <span className="text-on-surface-variant font-normal"> · пропущено строк: {parsed.skipped.length}</span> : null}
+            {t("editor.recognized", { count: parsed.cards.length })}
+            {parsed.skipped.length ? <span className="text-on-surface-variant font-normal"> · {t("editor.skipped", { count: parsed.skipped.length })}</span> : null}
           </div>
           <ul className="mt-2 flex flex-col gap-1.5 max-h-48 overflow-auto text-body-md">
             {parsed.cards.slice(0, 50).map((c, i) => (
@@ -458,7 +465,7 @@ function ImportSheet({ onAdd, onClose }) {
               </li>
             ))}
           </ul>
-          {parsed.skipped.length ? <p className="text-body-sm text-on-surface-variant mt-2">Без разделителя: строки {parsed.skipped.slice(0, 8).map((s) => s.line).join(", ")}</p> : null}
+          {parsed.skipped.length ? <p className="text-body-sm text-on-surface-variant mt-2">{t("editor.noSeparator", { lines: parsed.skipped.slice(0, 8).map((s) => s.line).join(", ") })}</p> : null}
         </div>
       ) : null}
     </Sheet>

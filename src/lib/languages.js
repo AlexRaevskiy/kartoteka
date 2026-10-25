@@ -4,12 +4,13 @@
  * "auto" = guess from the script (Georgian, Cyrillic, …).
  */
 import { detectLang } from "./speech.js";
+import i18n from "../i18n/index.js";
 
 export const LANGUAGES = [
-  { code: "auto", label: "Определять автоматически" },
+  { code: "auto", label: null }, // translated: languages.auto
   { code: "en-US", label: "English (US)" },
   { code: "en-GB", label: "English (UK)" },
-  { code: "ka-GE", label: "ქართული — грузинский" },
+  { code: "ka-GE", label: "ქართული" },
   { code: "ru-RU", label: "Русский" },
   { code: "uk-UA", label: "Українська" },
   { code: "pt-BR", label: "Português (Brasil)" },
@@ -19,7 +20,7 @@ export const LANGUAGES = [
   { code: "de-DE", label: "Deutsch" },
   { code: "it-IT", label: "Italiano" },
   { code: "tr-TR", label: "Türkçe" },
-  { code: "hy-AM", label: "Հայերեն — армянский" },
+  { code: "hy-AM", label: "Հայերեն" },
   { code: "az-AZ", label: "Azərbaycan" },
   { code: "pl-PL", label: "Polski" },
   { code: "zh-CN", label: "中文" },
@@ -29,7 +30,18 @@ export const LANGUAGES = [
   { code: "he-IL", label: "עברית" },
 ];
 
-export const languageLabel = (code) => LANGUAGES.find((l) => l.code === code)?.label || code;
+/** "ქართული — грузинский": the native name, plus the name in the interface language when it differs. */
+export function languageLabel(code) {
+  if (!code || code === "auto") return i18n.t("languages.auto");
+  const native = LANGUAGES.find((l) => l.code === code)?.label || code;
+  let local = null;
+  try {
+    local = new Intl.DisplayNames([i18n.resolvedLanguage || "en"], { type: "language" }).of(code.slice(0, 2));
+  } catch {
+    /* old browser: native name only */
+  }
+  return local && local.toLowerCase() !== native.toLowerCase() && !native.includes("(") ? `${native} — ${local}` : native;
+}
 
 /** Speech language for one side of a card. */
 export function speechLang(deck, side, text) {

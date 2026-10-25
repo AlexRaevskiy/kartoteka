@@ -1,5 +1,5 @@
 /**
- * Full JSON backup (Profile → Экспорт данных) and restore.
+ * Full JSON backup (Profile → Export data) and restore.
  *
  * Format v3:
  * {
@@ -55,11 +55,12 @@ export function backupFilename(now = new Date()) {
 /**
  * Parse any Kartoteka backup into { decks, folders }.
  * decks: [{ oldId, title, description, termLang, defLang, cards, progress, starred }]
- * Throws a readable Error if the file is not a backup.
+ * Throws an Error with `code` ("not-backup" | "empty") if the file is not a usable backup;
+ * the UI shows backup.errors.<code> in the interface language.
  */
 export function readBackup(json) {
   const raw = Array.isArray(json) ? json : json?.decks;
-  if (!Array.isArray(raw)) throw new Error("Это не резервная копия Kartoteka: в файле нет наборов.");
+  if (!Array.isArray(raw)) throw Object.assign(new Error("Not a Kartoteka backup: no sets in the file."), { code: "not-backup" });
 
   const decks = raw
     .filter((d) => d && Array.isArray(d.cards))
@@ -86,7 +87,7 @@ export function readBackup(json) {
         starred: Array.isArray(d.starred) ? d.starred : [],
       };
     });
-  if (!decks.length) throw new Error("В резервной копии нет наборов.");
+  if (!decks.length) throw Object.assign(new Error("The backup has no sets."), { code: "empty" });
 
   const folders = Array.isArray(json?.folders)
     ? json.folders.filter((f) => f?.name).map((f) => ({ name: String(f.name), color: f.color, deckIds: f.deckIds || [], tags: f.tags || [] }))

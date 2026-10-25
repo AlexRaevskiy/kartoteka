@@ -20,8 +20,9 @@ function initialLanguage() {
   } catch {
     /* storage blocked: fall through */
   }
-  // Most screens are still Russian-only, so Russian is the default until the user picks English.
-  return "ru";
+  // No saved choice: Russian for Russian-language browsers, English for everyone else.
+  const browser = (typeof navigator !== "undefined" && (navigator.languages?.[0] || navigator.language)) || "";
+  return browser.toLowerCase().startsWith("ru") ? "ru" : "en";
 }
 
 export function setLanguage(code) {
@@ -38,7 +39,7 @@ export function goalAmount(t, type, value) {
   return t(type === "minutes" ? "goal.minutes" : "goal.rounds", { count: value });
 }
 
-/** Translated counterpart of goals.js `goalLabel`: "3 раунда в день" / "3 rounds a day". */
+/** Daily goal wording: "3 раунда в день" / "3 rounds a day". */
 export function goalText(t, goalIn) {
   const g = normalizeGoal(goalIn);
   return t("goal.perDay", { value: goalAmount(t, g.type, g.value) });
@@ -51,7 +52,7 @@ i18n.on("languageChanged", (lng) => {
 i18n.use(initReactI18next).init({
   resources: { ru: { translation: ru }, en: { translation: en } },
   lng: initialLanguage(),
-  fallbackLng: "ru",
+  fallbackLng: "en",
   interpolation: { escapeValue: false },
 });
 

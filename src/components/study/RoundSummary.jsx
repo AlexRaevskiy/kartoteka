@@ -1,19 +1,24 @@
 /**
- * "Итоги раунда" — the clear end point of every round.
+ * Round summary — the clear end point of every round.
  * Praise · stats (right / to repeat) · list of mistakes (term — definition) ·
- * "Завершить" (home/back) and "Продолжить" (a round of only the missed cards; if there were
- * none — the next batch of cards).
+ * "Finish" (back to the set/folder) and "Continue" (a round of only the missed cards; if there
+ * were none — the next batch of cards).
  */
 import React, { useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import { ArrowRight, Check, RotateCcw, Trophy, Undo2 } from "lucide-react";
-import { praiseFor } from "../../lib/rounds.js";
+import { praiseLevel } from "../../lib/rounds.js";
 import { speechLang } from "../../lib/languages.js";
 import { ProgressBar, SpeakButton } from "../ui.jsx";
 
 export default function RoundSummary({ summary, kind, hasMore, onFinish, onContinueMistakes, onNextRound, onSpeak }) {
   // Handlers are called without the click event and only if they were passed.
   const call = (fn) => () => (typeof fn === "function" ? fn() : undefined);
-  const praise = useMemo(() => praiseFor(summary.accuracy), [summary]);
+  const { t, i18n } = useTranslation();
+  const praise = useMemo(() => {
+    const list = t(`praise.${praiseLevel(summary.accuracy)}`, { returnObjects: true });
+    return Array.isArray(list) ? list[Math.floor(Math.random() * list.length)] : "";
+  }, [summary, i18n.language]); // eslint-disable-line react-hooks/exhaustive-deps
   const mistakes = summary.mistakes;
   const repeat = mistakes.length;
 
@@ -21,13 +26,13 @@ export default function RoundSummary({ summary, kind, hasMore, onFinish, onConti
   if (repeat) {
     continueButton = (
       <button type="button" className="fc-btn fc-btn-filled fc-btn-lg flex-1" onClick={call(onContinueMistakes)} autoFocus>
-        <RotateCcw size={20} /> Продолжить
+        <RotateCcw size={20} /> {t("home.continue")}
       </button>
     );
   } else if (hasMore) {
     continueButton = (
       <button type="button" className="fc-btn fc-btn-filled fc-btn-lg flex-1" onClick={call(onNextRound)} autoFocus>
-        Продолжить <ArrowRight size={20} />
+        {t("home.continue")} <ArrowRight size={20} />
       </button>
     );
   }
@@ -38,7 +43,7 @@ export default function RoundSummary({ summary, kind, hasMore, onFinish, onConti
         <div className="fc-pop mx-auto w-20 h-20 rounded-3xl bg-success-container text-success flex items-center justify-center">
           <Trophy size={40} />
         </div>
-        <div className="text-label-lg text-on-surface-variant mt-4">{kind === "retry" ? "Итоги повтора" : "Итоги раунда"}</div>
+        <div className="text-label-lg text-on-surface-variant mt-4">{kind === "retry" ? t("summary.retryTitle") : t("study.summary")}</div>
         <h1 id="summary-title" className="text-headline-sm mt-1 text-balance">
           {praise}
         </h1>
@@ -47,24 +52,25 @@ export default function RoundSummary({ summary, kind, hasMore, onFinish, onConti
       <div className="grid grid-cols-2 gap-3">
         <div className="rounded-3xl bg-success-container p-4 text-center">
           <div className="text-display-sm fc-tabular text-success">{summary.correct}</div>
-          <div className="text-label-lg">верно</div>
+          <div className="text-label-lg">{t("summary.correct")}</div>
         </div>
         <div className="rounded-3xl bg-warning-container p-4 text-center">
           <div className="text-display-sm fc-tabular text-warning">{repeat}</div>
-          <div className="text-label-lg">на повторение</div>
+          <div className="text-label-lg">{t("summary.toRepeat")}</div>
         </div>
       </div>
       <div>
-        <ProgressBar value={summary.accuracy} color="var(--md-success)" label="Точность" />
+        <ProgressBar value={summary.accuracy} color="var(--md-success)" label={t("summary.accuracy")} />
         <div className="text-body-sm text-on-surface-variant mt-1.5 text-center fc-tabular">
-          {summary.accuracy}% с первой попытки{summary.almost ? ` · ${summary.almost} с частичным зачётом` : ""}
+          {t("summary.firstTry", { pct: summary.accuracy })}
+          {summary.almost ? ` · ${t("summary.partial", { count: summary.almost })}` : ""}
         </div>
       </div>
 
       {repeat ? (
         <div>
           <h2 className="text-title-md mb-2 flex items-center gap-2">
-            <Undo2 size={18} className="fc-warn" /> Слова с ошибками
+            <Undo2 size={18} className="fc-warn" /> {t("summary.mistakes")}
           </h2>
           <ul className="flex flex-col gap-2">
             {mistakes.map((item) => (
@@ -84,19 +90,19 @@ export default function RoundSummary({ summary, kind, hasMore, onFinish, onConti
         </div>
       ) : (
         <p className="text-body-md text-on-surface-variant text-center flex items-center justify-center gap-2">
-          <Check size={18} className="fc-good" /> Ошибок нет — {hasMore ? "можно дальше!" : "на сегодня это все карточки."}
+          <Check size={18} className="fc-good" /> {hasMore ? t("summary.noMistakesMore") : t("summary.noMistakesDone")}
         </p>
       )}
 
       <div className="flex gap-3 sticky bottom-0 pt-2 pb-1 bg-surface" style={{ paddingBottom: "calc(8px + env(safe-area-inset-bottom, 0px))" }}>
         <button type="button" className="fc-btn fc-btn-outlined fc-btn-lg flex-1" onClick={call(onFinish)}>
-          Завершить
+          {t("study.finish")}
         </button>
         {continueButton}
       </div>
       {repeat && hasMore ? (
         <button type="button" className="fc-btn fc-btn-text self-center -mt-2" onClick={call(onNextRound)}>
-          Пропустить ошибки — следующий раунд
+          {t("summary.skipMistakes")}
         </button>
       ) : null}
     </section>

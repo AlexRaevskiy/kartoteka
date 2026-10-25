@@ -1,18 +1,18 @@
 /**
  * Bottom sheets shared by the Deck and Folder screens:
  *   ShareSheet         link + native share / copy + who can see it (owner)
- *   FolderPickerSheet  bookmark: tick the folders this deck belongs to, "+ Новая папка"
+ *   FolderPickerSheet  bookmark: tick the folders this deck belongs to, "+ New folder"
  *   GoalSheet          "Choose a goal for these sessions": Cram for a test / Memorize it all
  *   DownloadSheet      .txt / .csv export of a deck
  *   SetInfoSheet       metadata of a deck
  */
 import React, { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Check, Copy, FileSpreadsheet, FileText, FolderPlus, Globe, Lock, KeyRound, Share2, Timer, Brain } from "lucide-react";
 import { Sheet } from "./ui.jsx";
 import { useDialogs, useToast } from "./providers.jsx";
 import { useLibrary } from "../data/LibraryProvider.jsx";
 import { copyText, deckToText, downloadText, safeFilename, shareLink, shareUrl } from "../lib/share.js";
-import { EDIT_OPTIONS, VISIBILITY_OPTIONS } from "../lib/model.js";
 import { languageLabel } from "../lib/languages.js";
 import { cx } from "../lib/utils.js";
 
@@ -20,44 +20,45 @@ import { cx } from "../lib/utils.js";
 
 export function ShareSheet({ kind, item, path, canManage, onVisibility, onClose }) {
   const toast = useToast();
+  const { t } = useTranslation();
   const url = shareUrl(path);
   const title = kind === "deck" ? item.title : item.name;
   const options =
     kind === "deck"
       ? [
-          { value: "public", label: "Все, у кого есть ссылка", icon: Globe },
-          { value: "password", label: "По паролю", icon: KeyRound, disabled: true },
-          { value: "private", label: "Только я", icon: Lock },
+          { value: "public", label: t("share.anyoneWithLink"), icon: Globe },
+          { value: "password", label: t("visibility.password.label"), icon: KeyRound, disabled: true },
+          { value: "private", label: t("visibility.private.label"), icon: Lock },
         ]
       : [
-          { value: "public", label: "Все, у кого есть ссылка", icon: Globe },
-          { value: "private", label: "Только я", icon: Lock },
+          { value: "public", label: t("share.anyoneWithLink"), icon: Globe },
+          { value: "private", label: t("visibility.private.label"), icon: Lock },
         ];
   const doShare = async () => {
-    const r = await shareLink({ path, title, text: kind === "deck" ? `Набор карточек «${title}»` : `Папка «${title}»` });
-    if (r === "copied") toast("Ссылка скопирована");
-    if (r === "failed") toast("Не удалось поделиться — скопируйте ссылку вручную");
+    const r = await shareLink({ path, title, text: kind === "deck" ? t("deck.shareText", { title }) : t("folder.shareText", { title }) });
+    if (r === "copied") toast(t("common.linkCopied"));
+    if (r === "failed") toast(t("share.failed"));
   };
   return (
-    <Sheet title="Поделиться" subtitle={title} onClose={onClose} labelId="share-title">
+    <Sheet title={t("common.share")} subtitle={title} onClose={onClose} labelId="share-title">
       <div className="flex items-center gap-2 bg-surface-container-high rounded-xl pl-4 pr-1 py-1">
         <span className="flex-1 min-w-0 truncate text-body-md fc-mono">{url}</span>
         <button
           type="button"
           className="fc-btn fc-icon-btn"
-          aria-label="Копировать ссылку"
-          onClick={async () => toast((await copyText(url)) ? "Ссылка скопирована" : "Не удалось скопировать")}
+          aria-label={t("share.copyLink")}
+          onClick={async () => toast((await copyText(url)) ? t("common.linkCopied") : t("share.copyFailed"))}
         >
           <Copy size={20} />
         </button>
       </div>
       <button type="button" className="fc-btn fc-btn-filled w-full" onClick={doShare}>
-        <Share2 size={18} /> Поделиться…
+        <Share2 size={18} /> {t("share.shareEllipsis")}
       </button>
 
       {canManage ? (
         <div>
-          <div className="text-title-sm mb-1">Кто может открыть</div>
+          <div className="text-title-sm mb-1">{t("share.whoCanOpen")}</div>
           <div role="radiogroup" className="flex flex-col">
             {options.map((o) => {
               const selected = item.visibility === o.value;
@@ -79,11 +80,11 @@ export function ShareSheet({ kind, item, path, canManage, onVisibility, onClose 
             })}
           </div>
           {kind === "deck" ? (
-            <p className="text-body-sm text-on-surface-variant mt-1">Пароль задаётся в настройках набора (Редактировать → шестерёнка).</p>
+            <p className="text-body-sm text-on-surface-variant mt-1">{t("share.passwordHint")}</p>
           ) : (
-            <p className="text-body-sm text-on-surface-variant mt-1">Закрытые наборы внутри папки останутся закрытыми — другие увидят только открытые.</p>
+            <p className="text-body-sm text-on-surface-variant mt-1">{t("share.folderHint")}</p>
           )}
-          {item.visibility === "private" ? <p className="text-body-sm fc-warn mt-2">Сейчас доступ только у вас: по ссылке другие увидят «Закрыто».</p> : null}
+          {item.visibility === "private" ? <p className="text-body-sm fc-warn mt-2">{t("share.privateWarning")}</p> : null}
         </div>
       ) : null}
     </Sheet>
@@ -96,15 +97,16 @@ export function FolderPickerSheet({ deck, onClose }) {
   const lib = useLibrary();
   const { prompt } = useDialogs();
   const toast = useToast();
+  const { t } = useTranslation();
   const newFolder = async () => {
-    const name = await prompt({ title: "Новая папка", label: "Название", placeholder: "Например, Georgian", confirmLabel: "Создать" });
+    const name = await prompt({ title: t("folder.new.title"), label: t("folder.new.label"), placeholder: t("folder.new.placeholder"), confirmLabel: t("folder.new.confirm") });
     if (!name) return;
     if (!deck.inLibrary) lib.actions.addToLibrary(deck);
     await lib.actions.createFolder({ name, deckIds: [deck.id] });
-    toast(`Папка «${name}» создана`);
+    toast(t("folder.created", { name }));
   };
   return (
-    <Sheet title="Добавить в папку" subtitle={deck.title} onClose={onClose} labelId="folders-title">
+    <Sheet title={t("deck.addToFolder")} subtitle={deck.title} onClose={onClose} labelId="folders-title">
       {lib.folders.length ? (
         <div className="flex flex-col -mx-2">
           {lib.folders.map((f) => {
@@ -116,7 +118,7 @@ export function FolderPickerSheet({ deck, onClose }) {
                 </span>
                 <span className="flex-1 min-w-0">
                   <span className="block text-body-lg truncate">{f.name}</span>
-                  <span className="block text-body-sm text-on-surface-variant">{f.deckIds.length} наб.</span>
+                  <span className="block text-body-sm text-on-surface-variant">{t("folder.setCount", { count: f.deckIds.length })}</span>
                 </span>
                 <input
                   type="checkbox"
@@ -130,10 +132,10 @@ export function FolderPickerSheet({ deck, onClose }) {
           })}
         </div>
       ) : (
-        <p className="text-body-md text-on-surface-variant">Папок пока нет. Создайте первую — набор сразу в неё попадёт.</p>
+        <p className="text-body-md text-on-surface-variant">{t("folderPicker.empty")}</p>
       )}
       <button type="button" className="fc-btn fc-btn-tonal self-start" onClick={newFolder}>
-        <FolderPlus size={18} /> Новая папка
+        <FolderPlus size={18} /> {t("folder.new.title")}
       </button>
     </Sheet>
   );
@@ -142,33 +144,22 @@ export function FolderPickerSheet({ deck, onClose }) {
 /* ---------- Choose a goal ---------- */
 
 export const GOALS = [
-  {
-    value: "cram",
-    title: "Cram for a test",
-    ru: "Подготовиться к тесту",
-    body: "Быстрая зубрёжка всех карточек подряд, не дожидаясь интервалов Лейтнера. Ошибки всё равно запоминаются.",
-    icon: Timer,
-  },
-  {
-    value: "memorize",
-    title: "Memorize it all",
-    ru: "Запомнить надолго",
-    body: "Классический Лейтнер: только карточки, которые пора повторить. Лучше всего для долгой памяти.",
-    icon: Brain,
-  },
+  { value: "cram", icon: Timer },
+  { value: "memorize", icon: Brain },
 ];
 
 export function GoalSheet({ defaultGoal = "memorize", starredOnly, starredCount, onStart, onClose }) {
   const [goal, setGoal] = useState(defaultGoal);
+  const { t } = useTranslation();
   return (
     <Sheet
-      title="Choose a goal for these sessions"
-      subtitle={starredOnly ? `Только отмеченные: ${starredCount}` : "Выберите цель для учебных сессий"}
+      title={t("goalSheet.title")}
+      subtitle={starredOnly ? t("goalSheet.starredOnly", { count: starredCount }) : t("goalSheet.subtitle")}
       onClose={onClose}
       labelId="goal-title"
       footer={
         <button type="button" className="fc-btn fc-btn-filled fc-btn-lg w-full" onClick={() => onStart(goal)}>
-          Start learn
+          {t("goalSheet.start")}
         </button>
       }
     >
@@ -188,9 +179,8 @@ export function GoalSheet({ defaultGoal = "memorize", starredOnly, starredCount,
                 <g.icon size={22} />
               </span>
               <span className="min-w-0">
-                <span className="block text-title-md">{g.title}</span>
-                <span className="block text-label-md text-on-surface-variant">{g.ru}</span>
-                <span className="block text-body-md text-on-surface-variant mt-1">{g.body}</span>
+                <span className="block text-title-md">{t(`goalSheet.${g.value}.title`)}</span>
+                <span className="block text-body-md text-on-surface-variant mt-1">{t(`goalSheet.${g.value}.body`)}</span>
               </span>
             </button>
           );
@@ -203,25 +193,26 @@ export function GoalSheet({ defaultGoal = "memorize", starredOnly, starredCount,
 /* ---------- Download ---------- */
 
 export function DownloadSheet({ deck, onClose }) {
+  const { t } = useTranslation();
   const save = async (format) => {
     const text = deckToText(deck, format);
     await downloadText(text, `${safeFilename(deck.title)}.${format}`, format === "csv" ? "text/csv" : "text/plain");
     onClose();
   };
   return (
-    <Sheet title="Скачать карточки" subtitle={`${deck.cards.length} карточек`} onClose={onClose} labelId="download-title">
+    <Sheet title={t("download.title")} subtitle={t("deck.cardCount", { count: deck.cards.length })} onClose={onClose} labelId="download-title">
       <button type="button" className="fc-list-item rounded-xl -mx-2" onClick={() => save("txt")}>
         <FileText size={22} className="text-on-surface-variant" />
         <span className="flex-1">
-          <span className="block text-body-lg">Текст (.txt)</span>
-          <span className="block text-body-sm text-on-surface-variant">термин ⇥ определение ⇥ пример — вставляется обратно через «Импорт»</span>
+          <span className="block text-body-lg">{t("download.txt")}</span>
+          <span className="block text-body-sm text-on-surface-variant">{t("download.txtHint")}</span>
         </span>
       </button>
       <button type="button" className="fc-list-item rounded-xl -mx-2" onClick={() => save("csv")}>
         <FileSpreadsheet size={22} className="text-on-surface-variant" />
         <span className="flex-1">
-          <span className="block text-body-lg">Таблица (.csv)</span>
-          <span className="block text-body-sm text-on-surface-variant">для Excel и Google Sheets</span>
+          <span className="block text-body-lg">{t("download.csv")}</span>
+          <span className="block text-body-sm text-on-surface-variant">{t("download.csvHint")}</span>
         </span>
       </button>
     </Sheet>
@@ -231,20 +222,21 @@ export function DownloadSheet({ deck, onClose }) {
 /* ---------- Set info ---------- */
 
 export function SetInfoSheet({ deck, onClose }) {
-  const fmt = (ts) => new Date(ts).toLocaleDateString("ru-RU", { day: "numeric", month: "long", year: "numeric" });
+  const { t, i18n } = useTranslation();
+  const fmt = (ts) => new Date(ts).toLocaleDateString(i18n.resolvedLanguage, { day: "numeric", month: "long", year: "numeric" });
   const rows = [
-    ["Описание", deck.description || "—"],
-    ["Автор", deck.own ? "Вы" : deck.ownerName || "—"],
-    ["Создан", fmt(deck.createdAt)],
-    ["Изменён", fmt(deck.updatedAt)],
-    ["Карточек", String(deck.cards.length)],
-    ["Язык терминов", languageLabel(deck.termLang)],
-    ["Язык определений", languageLabel(deck.defLang)],
-    ["Кто видит", VISIBILITY_OPTIONS.find((o) => o.value === deck.visibility)?.label],
-    ["Кто редактирует", EDIT_OPTIONS.find((o) => o.value === deck.editPolicy)?.label],
+    [t("info.description"), deck.description || "—"],
+    [t("deck.author"), deck.own ? t("deck.you") : deck.ownerName || "—"],
+    [t("info.created"), fmt(deck.createdAt)],
+    [t("info.updated"), fmt(deck.updatedAt)],
+    [t("info.cards"), String(deck.cards.length)],
+    [t("info.termLang"), languageLabel(deck.termLang)],
+    [t("info.defLang"), languageLabel(deck.defLang)],
+    [t("info.whoSees"), t(`visibility.${deck.visibility}.label`)],
+    [t("info.whoEdits"), t(`editPolicy.${deck.editPolicy}.label`)],
   ];
   return (
-    <Sheet title="Информация о наборе" subtitle={deck.title} onClose={onClose} labelId="info-title">
+    <Sheet title={t("info.title")} subtitle={deck.title} onClose={onClose} labelId="info-title">
       <dl className="grid gap-x-4 gap-y-3" style={{ gridTemplateColumns: "auto minmax(0,1fr)" }}>
         {rows.map(([k, v]) => (
           <React.Fragment key={k}>

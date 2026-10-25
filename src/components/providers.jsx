@@ -5,6 +5,7 @@
  *                   which look out of place and are unreliable in installed iOS apps)
  */
 import React, { createContext, useCallback, useContext, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { X } from "lucide-react";
 import { Sheet } from "./ui.jsx";
 import { uid } from "../lib/model.js";
@@ -14,8 +15,9 @@ const ToastContext = createContext(() => {});
 export const useToast = () => useContext(ToastContext);
 
 export function ToastProvider({ children }) {
+  const { t } = useTranslation();
   const [toasts, setToasts] = useState([]);
-  const dismiss = useCallback((id) => setToasts((l) => l.filter((t) => t.id !== id)), []);
+  const dismiss = useCallback((id) => setToasts((l) => l.filter((item) => item.id !== id)), []);
   const toast = useCallback(
     (text, { icon, action, duration = 3600 } = {}) => {
       const id = uid();
@@ -34,24 +36,24 @@ export function ToastProvider({ children }) {
         role="status"
         aria-live="polite"
       >
-        {toasts.map((t) => (
-          <div key={t.id} className="fc-toast fc-in rounded-lg pl-4 pr-2 py-1.5 text-body-md shadow-lg max-w-md w-full sm:w-auto flex items-center gap-3 pointer-events-auto min-h-12">
-            {t.icon ? <t.icon size={18} className="shrink-0" /> : null}
-            <span className="flex-1 py-2">{t.text}</span>
-            {t.action ? (
+        {toasts.map((item) => (
+          <div key={item.id} className="fc-toast fc-in rounded-lg pl-4 pr-2 py-1.5 text-body-md shadow-lg max-w-md w-full sm:w-auto flex items-center gap-3 pointer-events-auto min-h-12">
+            {item.icon ? <item.icon size={18} className="shrink-0" /> : null}
+            <span className="flex-1 py-2">{item.text}</span>
+            {item.action ? (
               <button
                 type="button"
                 className="fc-btn fc-btn-text"
                 style={{ color: "var(--md-primary-container)" }}
                 onClick={() => {
-                  t.action.onClick();
-                  dismiss(t.id);
+                  item.action.onClick();
+                  dismiss(item.id);
                 }}
               >
-                {t.action.label}
+                {item.action.label}
               </button>
             ) : (
-              <button type="button" className="fc-btn fc-icon-btn" style={{ color: "inherit", width: 40, height: 40, minHeight: 40 }} aria-label="Закрыть" onClick={() => dismiss(t.id)}>
+              <button type="button" className="fc-btn fc-icon-btn" style={{ color: "inherit", width: 40, height: 40, minHeight: 40 }} aria-label={t("common.close")} onClick={() => dismiss(item.id)}>
                 <X size={18} />
               </button>
             )}
@@ -67,6 +69,7 @@ const DialogContext = createContext(null);
 export const useDialogs = () => useContext(DialogContext);
 
 export function DialogProvider({ children }) {
+  const { t } = useTranslation();
   const [dialog, setDialog] = useState(null);
   const resolver = useRef(null);
   const [value, setValue] = useState("");
@@ -113,7 +116,7 @@ export function DialogProvider({ children }) {
           footer={
             <>
               <button type="button" className="fc-btn fc-btn-text" onClick={() => close(dialog.kind === "prompt" ? null : false)}>
-                Отмена
+                {t("common.cancel")}
               </button>
               <button
                 type="submit"

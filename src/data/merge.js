@@ -6,6 +6,7 @@
 import { AlertTriangle, Sparkles } from "lucide-react";
 import { buildBackup, readBackup } from "../lib/backup.js";
 import { restoreInto } from "./LibraryProvider.jsx";
+import i18n from "../i18n/index.js";
 
 export async function mergeGuestInto(auth, lib, credential, toast) {
   const own = lib.decks.filter((d) => d.own);
@@ -17,9 +18,9 @@ export async function mergeGuestInto(auth, lib, credential, toast) {
   }
   try {
     const result = await auth.signInWithExistingCredential(credential);
-    if (snapshot) await restoreInto(result.user.uid, result.user.displayName || "Пользователь", snapshot);
-    toast(own.length ? `Вы вошли. Гостевые наборы (${own.length}) добавлены в аккаунт.` : "Вы вошли в аккаунт Google.", { icon: Sparkles, duration: 6000 });
+    if (snapshot) await restoreInto(result.user.uid, result.user.displayName || i18n.t("library.user"), snapshot);
+    toast(own.length ? i18n.t("merge.signedInWithSets", { count: own.length }) : i18n.t("merge.signedIn"), { icon: Sparkles, duration: 6000 });
   } catch (err) {
-    toast(err?.message || "Не удалось переключить аккаунт.", { icon: AlertTriangle, duration: 6000 });
+    toast(err?.message || i18n.t("merge.failed"), { icon: AlertTriangle, duration: 6000 });
   }
 }

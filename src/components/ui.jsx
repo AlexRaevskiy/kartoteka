@@ -6,6 +6,7 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { ArrowLeft, Loader2, MoreVertical, Volume2, X } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { cx, splitOnTerm } from "../lib/utils.js";
 
 export function Spinner({ size = 18, className }) {
@@ -17,6 +18,7 @@ export function Spinner({ size = 18, className }) {
  * While the cloud audio loads (onSpeak returns a promise) it shows a spinner.
  */
 export function SpeakButton({ text, lang, onSpeak, className, size = 20 }) {
+  const { t } = useTranslation();
   const [loading, setLoading] = useState(false);
   const mounted = useRef(true);
   useEffect(() => {
@@ -29,9 +31,9 @@ export function SpeakButton({ text, lang, onSpeak, className, size = 20 }) {
     <button
       type="button"
       className={cx("fc-btn fc-icon-btn", className)}
-      aria-label={`Озвучить: ${text}`}
+      aria-label={t("ui.speakText", { text })}
       aria-busy={loading || undefined}
-      title="Озвучить"
+      title={t("ui.speak")}
       onPointerDown={(e) => e.stopPropagation()}
       onClick={(e) => {
         e.stopPropagation();
@@ -48,24 +50,41 @@ export function SpeakButton({ text, lang, onSpeak, className, size = 20 }) {
   );
 }
 
+/** Round avatar: the photo when there is one (and it loads), otherwise the first letter of the name. */
+export function Avatar({ photoURL, name, size = 24, className }) {
+  const [broken, setBroken] = useState(false);
+  useEffect(() => setBroken(false), [photoURL]);
+  const style = { width: size, height: size, fontSize: Math.max(11, Math.round(size * 0.45)) };
+  if (photoURL && !broken) {
+    return <img src={photoURL} alt="" className={cx("rounded-full object-cover shrink-0", className)} style={style} referrerPolicy="no-referrer" onError={() => setBroken(true)} />;
+  }
+  return (
+    <span className={cx("rounded-full bg-tertiary-container text-on-tertiary-container inline-flex items-center justify-center shrink-0 font-medium", className)} style={style} aria-hidden="true">
+      {(name || "?").trim().slice(0, 1).toUpperCase()}
+    </span>
+  );
+}
+
 export function BoxBadge({ box }) {
+  const { t } = useTranslation();
   return (
     <span className="fc-badge fc-badge-muted">
       <span className="w-2 h-2 rounded-full" style={{ background: `var(--box-${box})` }} />
-      Коробка {box}
+      {t("ui.box", { box })}
     </span>
   );
 }
 
 /** Example sentence with the term highlighted, or blanked out when the term is the answer. */
 export function ExampleSentence({ sentence, term, mode = "highlight", className }) {
+  const { t } = useTranslation();
   if (!sentence) return null;
   return (
     <p className={cx("fc-example", className)}>
       {splitOnTerm(sentence, term).map((part, i) =>
         part.hit ? (
           mode === "mask" ? (
-            <span key={i} className="fc-blank" aria-label="пропуск">
+            <span key={i} className="fc-blank" aria-label={t("ui.blank")}>
               {part.text}
             </span>
           ) : (
@@ -129,6 +148,7 @@ export function ProgressBar({ value, color = "var(--md-primary)", label, classNa
  * Closes on Escape, on the scrim, and (optionally) with the X.
  */
 export function Sheet({ title, subtitle, onClose, children, footer, labelId = "sheet-title", as = "div", onSubmit, wide = false, dialog = false }) {
+  const { t } = useTranslation();
   const closeRef = useRef(onClose);
   closeRef.current = onClose;
   useEffect(() => {
@@ -164,7 +184,7 @@ export function Sheet({ title, subtitle, onClose, children, footer, labelId = "s
             {subtitle ? <p className="text-body-md text-on-surface-variant mt-1">{subtitle}</p> : null}
           </div>
           {onClose && !dialog ? (
-            <button type="button" className="fc-btn fc-icon-btn -mr-3 -mt-1" aria-label="Закрыть" onClick={onClose}>
+            <button type="button" className="fc-btn fc-icon-btn -mr-3 -mt-1" aria-label={t("common.close")} onClick={onClose}>
               <X size={22} />
             </button>
           ) : null}
@@ -179,7 +199,8 @@ export function Sheet({ title, subtitle, onClose, children, footer, labelId = "s
 /**
  * Three-dots menu. items: [{ label, icon, onClick, danger, hidden }]
  */
-export function Menu({ items, label = "Ещё", icon: Icon = MoreVertical, align = "right" }) {
+export function Menu({ items, label, icon: Icon = MoreVertical, align = "right" }) {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
   const menuRef = useRef(null);
@@ -206,7 +227,7 @@ export function Menu({ items, label = "Ещё", icon: Icon = MoreVertical, align
 
   return (
     <div className="relative" ref={ref}>
-      <button type="button" className="fc-btn fc-icon-btn" aria-haspopup="menu" aria-expanded={open} aria-label={label} onClick={() => setOpen((o) => !o)}>
+      <button type="button" className="fc-btn fc-icon-btn" aria-haspopup="menu" aria-expanded={open} aria-label={label || t("ui.more")} onClick={() => setOpen((o) => !o)}>
         <Icon size={22} />
       </button>
       {open ? (
@@ -249,6 +270,7 @@ export function Menu({ items, label = "Ещё", icon: Icon = MoreVertical, align
  */
 export function TopBar({ title, back, backTo = "/", actions, children, className }) {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const [scrolled, setScrolled] = useState(false);
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 4);
@@ -262,7 +284,7 @@ export function TopBar({ title, back, backTo = "/", actions, children, className
       <div className="fc-gutter">
         <div className="mx-auto max-w-3xl flex items-center gap-1 h-16">
           {back ? (
-            <button type="button" className="fc-btn fc-icon-btn -ml-3 text-on-surface" aria-label="Назад" onClick={goBack}>
+            <button type="button" className="fc-btn fc-icon-btn -ml-3 text-on-surface" aria-label={t("common.back")} onClick={goBack}>
               <ArrowLeft size={24} />
             </button>
           ) : null}

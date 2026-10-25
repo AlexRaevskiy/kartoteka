@@ -8,6 +8,7 @@ import { Download, RefreshCw, Share, X } from "lucide-react";
 import { useInstallPrompt } from "../hooks/useInstallPrompt.js";
 
 export function UpdatePrompt() {
+  const { t } = useTranslation();
   const {
     needRefresh: [needRefresh, setNeedRefresh],
     updateServiceWorker,
@@ -21,11 +22,11 @@ export function UpdatePrompt() {
     <div className="fixed left-0 right-0 z-[60] flex justify-center fc-gutter pointer-events-none" style={{ top: "calc(10px + env(safe-area-inset-top, 0px))" }} role="status">
       <div className="fc-toast fc-in rounded-lg pl-4 pr-2 py-1.5 text-body-md shadow-lg flex items-center gap-3 pointer-events-auto max-w-md w-full sm:w-auto">
         <RefreshCw size={18} className="shrink-0" />
-        <span className="flex-1">Доступна новая версия.</span>
+        <span className="flex-1">{t("pwa.updateAvailable")}</span>
         <button type="button" className="fc-btn fc-btn-text" style={{ color: "var(--md-primary-container)" }} onClick={() => updateServiceWorker(true)}>
-          Обновить
+          {t("pwa.update")}
         </button>
-        <button type="button" className="fc-btn fc-icon-btn" style={{ color: "inherit", width: 40, height: 40, minHeight: 40 }} aria-label="Позже" onClick={() => setNeedRefresh(false)}>
+        <button type="button" className="fc-btn fc-icon-btn" style={{ color: "inherit", width: 40, height: 40, minHeight: 40 }} aria-label={t("pwa.later")} onClick={() => setNeedRefresh(false)}>
           <X size={18} />
         </button>
       </div>
@@ -35,6 +36,7 @@ export function UpdatePrompt() {
 
 /** Android / desktop install banner (beforeinstallprompt). iOS Safari gets IOSInstallHint instead. */
 export function InstallBanner({ install, onDismiss }) {
+  const { t } = useTranslation();
   if (!install.canInstall) return null;
   return (
     <div className="fc-panel p-4 flex items-center gap-3 fc-in">
@@ -42,13 +44,13 @@ export function InstallBanner({ install, onDismiss }) {
         <Download size={20} />
       </div>
       <div className="flex-1 min-w-0">
-        <div className="text-title-sm">Установите Kartoteka</div>
-        <div className="text-body-sm text-on-surface-variant">Открывайте с домашнего экрана, как приложение. Работает офлайн.</div>
+        <div className="text-title-sm">{t("pwa.installTitle")}</div>
+        <div className="text-body-sm text-on-surface-variant">{t("pwa.installBody")}</div>
       </div>
       <button type="button" className="fc-btn fc-btn-tonal" onClick={install.promptInstall}>
-        Установить
+        {t("pwa.install")}
       </button>
-      <button type="button" className="fc-btn fc-icon-btn" aria-label="Скрыть" onClick={onDismiss}>
+      <button type="button" className="fc-btn fc-icon-btn" aria-label={t("pwa.hide")} onClick={onDismiss}>
         <X size={20} />
       </button>
     </div>

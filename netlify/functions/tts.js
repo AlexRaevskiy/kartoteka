@@ -3,7 +3,9 @@
  *
  * Body: { text, lang }  (lang = BCP-47, e.g. "ka-GE")
  * Auth: "Authorization: Bearer <Firebase ID token>" — only signed-in users (guests included)
- *       can spend the speech quota.
+ *       can spend the speech quota. The token is checked with `jose` against Google's public
+ *       keys: firebase-admin/auth can't be loaded on Netlify (its jwks-rsa require()s the
+ *       ESM-only jose → ERR_REQUIRE_ESM, which crashed the whole function).
  * Returns: { audioContent: <base64 MP3>, cached: boolean }
  *
  * Audio comes from Azure Speech (it has Georgian neural voices) and is stored in Firestore
@@ -14,11 +16,12 @@
  *   AZURE_SPEECH_KEY       Azure portal → Speech service → Keys and Endpoint → KEY 1
  *   AZURE_SPEECH_REGION    the same page → Location/Region, e.g. "westeurope"
  *   FIREBASE_PROJECT_ID    (or VITE_FIREBASE_PROJECT_ID) — needed to verify ID tokens
+ *                          (Netlify exposes all site variables to functions unless scoped)
  *   FIREBASE_CLIENT_EMAIL, FIREBASE_PRIVATE_KEY — service account (same as send-reminders);
  *                          without them audio still plays, it just isn't cached.
  */
 import { cert, getApps, initializeApp } from "firebase-admin/app";
-import { getAuth } from "firebase-admin/auth";
+import { createRemoteJWKSet, jwtVerify } from "jose";
 import { FieldValue, getFirestore } from "firebase-admin/firestore";
 import { MAX_TTS_CHARS, normalizeTtsText, ttsCacheKey, voiceFor } from "../../src/lib/tts.js";
 
@@ -27,21 +30,32 @@ export const config = { path: "/api/tts" };
 const PROJECT_ID = process.env.FIREBASE_PROJECT_ID || process.env.VITE_FIREBASE_PROJECT_ID;
 const HAS_SERVICE_ACCOUNT = !!(process.env.FIREBASE_CLIENT_EMAIL && process.env.FIREBASE_PRIVATE_KEY);
 
-function firebaseAdmin() {
+/** Firestore via the Admin SDK, or null without a service account (audio then isn't cached). */
+function cacheDb() {
+  if (!HAS_SERVICE_ACCOUNT) return null;
   if (!getApps().length) {
-    initializeApp(
-      HAS_SERVICE_ACCOUNT
-        ? {
-            credential: cert({
-              projectId: PROJECT_ID,
-              clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-              privateKey: (process.env.FIREBASE_PRIVATE_KEY || "").replace(/\\n/g, "\n"),
-            }),
-          }
-        : { projectId: PROJECT_ID } // enough to verify ID tokens
-    );
+    initializeApp({
+      credential: cert({
+        projectId: PROJECT_ID,
+        clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+        privateKey: (process.env.FIREBASE_PRIVATE_KEY || "").replace(/\\n/g, "\n"),
+      }),
+    });
   }
-  return { auth: getAuth(), db: HAS_SERVICE_ACCOUNT ? getFirestore() : null };
+  return getFirestore();
+}
+
+// Firebase ID tokens are RS256 JWTs signed by securetoken@system.gserviceaccount.com.
+const FIREBASE_JWKS = createRemoteJWKSet(new URL("https://www.googleapis.com/service_accounts/v1/jwk/securetoken@system.gserviceaccount.com"));
+
+async function verifyFirebaseToken(token) {
+  const { payload } = await jwtVerify(token, FIREBASE_JWKS, {
+    issuer: `https://securetoken.google.com/${PROJECT_ID}`,
+    audience: PROJECT_ID,
+    algorithms: ["RS256"],
+  });
+  if (!payload.sub) throw new Error("Token has no subject");
+  return payload;
 }
 
 const json = (status, body) => new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json", "Cache-Control": "no-store" } });
@@ -69,10 +83,10 @@ export default async function handler(req) {
   if (req.method !== "POST") return json(405, { error: "Use POST" });
   if (!process.env.AZURE_SPEECH_KEY || !process.env.AZURE_SPEECH_REGION) return json(503, { error: "Облачная озвучка не настроена (AZURE_SPEECH_KEY / AZURE_SPEECH_REGION)." });
 
-  const { auth, db } = firebaseAdmin();
+  if (!PROJECT_ID) return json(503, { error: "Облачная озвучка не настроена (FIREBASE_PROJECT_ID)." });
   const token = (req.headers.get("authorization") || "").replace(/^Bearer\s+/i, "");
   try {
-    await auth.verifyIdToken(token);
+    await verifyFirebaseToken(token);
   } catch {
     return json(401, { error: "Нужно войти в приложение." });
   }
@@ -90,7 +104,7 @@ export default async function handler(req) {
   if (!voice) return json(400, { error: `Язык ${lang} не поддерживается облачной озвучкой.` });
 
   const id = await ttsCacheKey(text, lang);
-  const ref = db?.collection("audio_cache").doc(id);
+  const ref = cacheDb()?.collection("audio_cache").doc(id);
   try {
     const hit = ref ? await ref.get() : null;
     if (hit?.exists && hit.get("audioBase64")) return json(200, { audioContent: hit.get("audioBase64"), cached: true });

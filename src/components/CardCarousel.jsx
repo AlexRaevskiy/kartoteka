@@ -3,6 +3,7 @@
  * on phones, arrow keys on desktop) with pagination dots.
  */
 import React, { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { ChevronLeft, ChevronRight, Maximize2 } from "lucide-react";
 import { SpeakButton } from "./ui.jsx";
 import { cx } from "../lib/utils.js";
@@ -10,6 +11,7 @@ import { cx } from "../lib/utils.js";
 const MAX_SLIDES = 200; // keep the DOM light for huge decks
 
 function Slide({ card, reverse, onSpeak, deck }) {
+  const { t } = useTranslation();
   const [flipped, setFlipped] = useState(false);
   const front = reverse ? card.definition : card.term;
   const back = reverse ? card.term : card.definition;
@@ -22,7 +24,7 @@ function Slide({ card, reverse, onSpeak, deck }) {
         tabIndex={0}
         className={cx("fc-flip fc-focus", flipped && "is-flipped")}
         style={{ height: "clamp(13rem, 46vw, 18rem)" }}
-        aria-label={flipped ? `Ответ: ${back}` : `Карточка: ${front}. Нажмите, чтобы перевернуть`}
+        aria-label={flipped ? t("carousel.answer", { text: back }) : t("carousel.card", { text: front })}
         onClick={() => setFlipped((f) => !f)}
         onKeyDown={(e) => {
           if (e.key === "Enter" || e.key === " ") {
@@ -54,6 +56,7 @@ function Slide({ card, reverse, onSpeak, deck }) {
 }
 
 export default function CardCarousel({ deck, reverse, onSpeak, onFullscreen }) {
+  const { t } = useTranslation();
   const cards = deck.cards.slice(0, MAX_SLIDES);
   const scroller = useRef(null);
   const [index, setIndex] = useState(0);
@@ -90,7 +93,7 @@ export default function CardCarousel({ deck, reverse, onSpeak, onFullscreen }) {
   const dots = Array.from({ length: Math.min(DOTS, cards.length) }, (_, i) => start + i);
 
   return (
-    <section aria-roledescription="carousel" aria-label="Карточки набора">
+    <section aria-roledescription="carousel" aria-label={t("carousel.aria")}>
       <div
         ref={scroller}
         className="fc-hscroll is-center gap-3 -mx-4 px-4 py-2"
@@ -101,13 +104,13 @@ export default function CardCarousel({ deck, reverse, onSpeak, onFullscreen }) {
         }}
       >
         {cards.map((card, i) => (
-          <div key={card.id} className="w-[88%] sm:w-full" aria-roledescription="slide" aria-label={`${i + 1} из ${cards.length}`}>
+          <div key={card.id} className="w-[88%] sm:w-full" aria-roledescription="slide" aria-label={t("carousel.slide", { n: i + 1, total: cards.length })}>
             <Slide card={card} reverse={reverse} onSpeak={onSpeak} deck={deck} />
           </div>
         ))}
       </div>
       <div className="flex items-center justify-between mt-2">
-        <button type="button" className="fc-btn fc-icon-btn hidden sm:inline-flex" aria-label="Предыдущая" onClick={() => go(index - 1)} disabled={index === 0}>
+        <button type="button" className="fc-btn fc-icon-btn hidden sm:inline-flex" aria-label={t("carousel.previous")} onClick={() => go(index - 1)} disabled={index === 0}>
           <ChevronLeft size={22} />
         </button>
         <div className="flex items-center gap-1.5 mx-auto" aria-hidden="true">
@@ -131,11 +134,11 @@ export default function CardCarousel({ deck, reverse, onSpeak, onFullscreen }) {
           <span className="text-label-md text-on-surface-variant fc-tabular mr-1">
             {index + 1}/{cards.length}
           </span>
-          <button type="button" className="fc-btn fc-icon-btn" aria-label="Следующая" onClick={() => go(index + 1)} disabled={index >= cards.length - 1}>
+          <button type="button" className="fc-btn fc-icon-btn" aria-label={t("carousel.next")} onClick={() => go(index + 1)} disabled={index >= cards.length - 1}>
             <ChevronRight size={22} />
           </button>
           {onFullscreen ? (
-            <button type="button" className="fc-btn fc-icon-btn" aria-label="Учить на весь экран" onClick={onFullscreen}>
+            <button type="button" className="fc-btn fc-icon-btn" aria-label={t("carousel.fullscreen")} onClick={onFullscreen}>
               <Maximize2 size={20} />
             </button>
           ) : null}

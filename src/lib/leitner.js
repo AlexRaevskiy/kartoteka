@@ -18,14 +18,6 @@ export const BOXES = [1, 2, 3, 4, 5];
 /** Days until a card in this box is due again. `null` = mastered, never due. */
 export const BOX_INTERVAL_DAYS = { 1: 1, 2: 2, 3: 4, 4: 8, 5: null };
 
-export const BOX_LABEL = {
-  1: "каждый день",
-  2: "раз в 2 дня",
-  3: "раз в 4 дня",
-  4: "раз в 8 дней",
-  5: "выучено",
-};
-
 /**
  * What "almost" does to a card. Options:
  *   "stay" → keep the box, restart its interval (default)
@@ -109,20 +101,6 @@ export function plural(n, [one, few, many]) {
   if (b > 1 && b < 5) return few;
   if (b === 1) return one;
   return many;
-}
-
-export function relativeDay(ts, now = Date.now()) {
-  const n = daysBetween(now, ts);
-  if (n <= 0) return "сегодня";
-  if (n === 1) return "завтра";
-  return `через ${n} ${plural(n, ["день", "дня", "дней"])}`;
-}
-
-export function dueLabel(card, now = Date.now()) {
-  if (card.box >= 5) return "Выучено";
-  if (card.lastReviewed == null) return "Новая";
-  if (isDue(card, now)) return "Повторить сегодня";
-  return `Повтор ${relativeDay(nextDueAt(card), now)}`;
 }
 
 /** Summary numbers for a deck: cards per box, due per box, mastery %, next review date. */

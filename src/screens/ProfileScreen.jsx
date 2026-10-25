@@ -4,13 +4,14 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { Bell, BellOff, Cloud, Download, Flame, FolderInput, Languages, LogOut, Monitor, Moon, Smartphone, Sun, Trophy, UserRound } from "lucide-react";
+import { Bell, BellOff, Cloud, Download, Flame, FolderInput, Languages, LogOut, Monitor, Moon, Settings, Smartphone, Sun, Trophy, UserRound } from "lucide-react";
 import { useLibrary } from "../data/LibraryProvider.jsx";
 import { useAuthContext } from "../data/useAuth.js";
 import { mergeGuestInto } from "../data/merge.js";
 import { useDialogs, useToast } from "../components/providers.jsx";
-import { Switch, TopBar } from "../components/ui.jsx";
+import { Avatar, Switch, TopBar } from "../components/ui.jsx";
 import SEO from "../components/SEO.jsx";
+import ProfileEditSheet from "../components/ProfileEditSheet.jsx";
 import { useInstallPrompt } from "../hooks/useInstallPrompt.js";
 import { GOAL_TYPES, displayedStreak, localDateKey, normalizeGoal } from "../lib/goals.js";
 import { LANGUAGES, goalAmount, goalText, setLanguage } from "../i18n/index.js";
@@ -44,6 +45,7 @@ export default function ProfileScreen() {
   const notify = settings.notify;
   const [permission, setPermission] = useState(permissionState());
   const [busy, setBusy] = useState(false);
+  const [editing, setEditing] = useState(false);
   const support = pushSupport();
 
   useEffect(() => {
@@ -109,25 +111,31 @@ export default function ProfileScreen() {
     try {
       const parsed = readBackup(JSON.parse(await file.text()));
       const cards = parsed.decks.reduce((n, d) => n + d.cards.length, 0);
-      if (!(await confirm({ title: "Восстановить из копии?", message: `Будут добавлены наборы: ${parsed.decks.length} (${cards} карточек) с прогрессом${parsed.folders.length ? ` и папки: ${parsed.folders.length}` : ""}. Существующие данные не меняются.`, confirmLabel: "Добавить" }))) return;
+      const message = [
+        t("backup.confirm.sets", { sets: t("folder.setCount", { count: parsed.decks.length }), cards: t("deck.cardCount", { count: cards }) }),
+        parsed.folders.length ? t("backup.confirm.folders", { count: parsed.folders.length }) : "",
+        t("backup.confirm.keep"),
+      ].filter(Boolean).join(" ");
+      if (!(await confirm({ title: t("backup.confirm.title"), message, confirmLabel: t("editor.add") }))) return;
       const n = await lib.actions.restore(parsed);
-      toast(`Восстановлено наборов: ${n}`);
+      toast(t("backup.restored", { count: n }));
     } catch (err) {
-      toast(err instanceof SyntaxError ? "Файл не похож на JSON." : err.message, { duration: 6000 });
+      const message = err instanceof SyntaxError ? t("backup.errors.notJson") : err?.code ? t(`backup.errors.${err.code}`) : err.message;
+      toast(message, { duration: 6000 });
     }
   };
 
   /* ----- account ----- */
   const linkGoogle = async () => {
     const res = await auth.linkGuestToGoogle();
-    if (res?.linked) toast("Готово! Входите через Google на любом устройстве.");
+    if (res?.linked) toast(t("profile.linkedGoogle"));
     else if (res?.conflict) await mergeGuestInto(auth, lib, res.conflict, toast);
   };
   const signOut = async () => {
     const ok = await confirm(
       user.isAnonymous
-        ? { title: "Выйти из гостевого режима?", message: "Гостевые наборы нельзя будет восстановить. Сначала сохраните их в Google или экспортируйте.", confirmLabel: "Выйти", danger: true }
-        : { title: "Выйти из аккаунта?", confirmLabel: "Выйти" }
+        ? { title: t("profile.signOutGuest.title"), message: t("profile.signOutGuest.message"), confirmLabel: t("profile.signOut"), danger: true }
+        : { title: t("profile.signOutConfirm"), confirmLabel: t("profile.signOut") }
     );
     if (ok) auth.signOut();
   };
@@ -137,13 +145,21 @@ export default function ProfileScreen() {
   return (
     <div className="min-h-screen">
       <SEO title={`${t("profile.title")} | Kartoteka`} noindex />
-      <TopBar title={t("profile.title")} />
+      <TopBar
+        title={t("profile.title")}
+        actions={
+          <button type="button" className="fc-btn fc-icon-btn" aria-label={t("profileEdit.open")} title={t("profileEdit.open")} onClick={() => setEditing(true)}>
+            <Settings size={22} />
+          </button>
+        }
+      />
+      {editing ? <ProfileEditSheet onClose={() => setEditing(false)} /> : null}
       <main className="fc-gutter pb-8">
         <div className="mx-auto max-w-2xl flex flex-col gap-6">
           {/* Account */}
           <div className="flex items-center gap-4 px-1">
             {user.photoURL ? (
-              <img src={user.photoURL} alt="" className="w-16 h-16 rounded-full" referrerPolicy="no-referrer" />
+              <Avatar photoURL={user.photoURL} name={user.displayName || user.email} size={64} />
             ) : (
               <span className="w-16 h-16 rounded-full bg-tertiary-container text-on-tertiary-container flex items-center justify-center">
                 <UserRound size={30} />

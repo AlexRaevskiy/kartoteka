@@ -4,7 +4,7 @@
  * ─── Firestore layout ───────────────────────────────────────────────────────
  *
  *   decks/{deckId}                 deck CONTENT, shareable by link
- *     ownerId, ownerName, title, description,
+ *     ownerId, ownerName, ownerPhotoURL, title, description,
  *     termLang, defLang,                         BCP-47 code or "auto"
  *     visibility: "public" | "password" | "private"
  *     editPolicy: "owner" | "password"
@@ -44,15 +44,9 @@
 export const SCHEMA_VERSION = 3;
 export const MAX_CARDS_PER_DECK = 2000;
 
-export const VISIBILITY_OPTIONS = [
-  { value: "public", label: "Все", hint: "Любой, у кого есть ссылка" },
-  { value: "password", label: "По паролю", hint: "Только те, кто знает пароль" },
-  { value: "private", label: "Только я", hint: "Набор видите только вы" },
-];
-export const EDIT_OPTIONS = [
-  { value: "password", label: "По паролю", hint: "Редактировать могут те, кто знает пароль" },
-  { value: "owner", label: "Только я", hint: "Редактируете только вы" },
-];
+// Labels and hints live in the locale files: visibility.<value>.label / editPolicy.<value>.label.
+export const VISIBILITY_OPTIONS = [{ value: "public" }, { value: "password" }, { value: "private" }];
+export const EDIT_OPTIONS = [{ value: "password" }, { value: "owner" }];
 
 export const FOLDER_COLORS = ["#3A4DBF", "#00696B", "#8B4A00", "#7A3E9D", "#B3261E", "#2F6A2E", "#5D5F71"];
 
@@ -137,6 +131,7 @@ export function normalizeDeck(id, d = {}) {
     id: String(id),
     ownerId: d.ownerId || null,
     ownerName: d.ownerName || "",
+    ownerPhotoURL: d.ownerPhotoURL || "",
     title: String(d.title ?? d.name ?? "Без названия"),
     description: String(d.description || ""),
     termLang: d.termLang || "auto",
@@ -156,6 +151,7 @@ export function deckPayload(deck) {
   return {
     ownerId: deck.ownerId,
     ownerName: deck.ownerName || "",
+    ownerPhotoURL: deck.ownerPhotoURL || "",
     title: deck.title.trim() || "Без названия",
     description: (deck.description || "").trim(),
     termLang: deck.termLang || "auto",

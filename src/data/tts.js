@@ -33,7 +33,7 @@ export async function getSpeechAudio(text, lang) {
     body: JSON.stringify({ text: normalizeTtsText(text), lang }),
   });
   const data = await res.json().catch(() => ({}));
-  if (!res.ok || !data.audioContent) throw new Error(data.error || `TTS ${res.status}`);
+  if (!res.ok || !data.audioContent) throw new Error(data.error || data.errorMessage || `TTS ${res.status}`);
   memory.set(key, data.audioContent);
   return data.audioContent;
 }

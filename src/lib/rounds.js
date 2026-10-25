@@ -2,10 +2,10 @@
  * Study rounds.
  *
  * A session is a series of short rounds (10/20/30 cards). After each round the learner sees
- * "Итоги раунда" and either finishes or continues:
- *   - "Продолжить" with mistakes → a round made ONLY of the cards missed in this round
+ * the round summary and either finishes or continues:
+ *   - "Continue" with mistakes → a round made ONLY of the cards missed in this round
  *     (reinforcement: it does not move Leitner boxes again, the miss is already recorded);
- *   - "Следующий раунд"         → the next batch from the pool.
+ *   - "Next round"             → the next batch from the pool.
  *
  * An item is one card from one deck: { key, deckId, card } — so a folder session can mix
  * cards from many decks and still write progress back to the right deck.
@@ -62,14 +62,7 @@ export function summarizeRound(results) {
   };
 }
 
-const PRAISE = {
-  perfect: ["Безупречно! Ни одной ошибки 🎉", "Идеальный раунд! Так держать!", "100% — ты просто машина!"],
-  great: ["Отличная работа!", "Очень здорово, почти без ошибок!", "Мощно! Осталось чуть-чуть дожать."],
-  good: ["Хороший раунд! Ошибки — часть обучения.", "Неплохо! Повторим трудные слова?", "Ты на верном пути!"],
-  tough: ["Трудный раунд — но именно так и учатся.", "Не сдавайся: повтор ошибок закрепит слова.", "Каждая ошибка сегодня — выученное слово завтра."],
-};
-
-export function praiseFor(accuracy, rnd = Math.random) {
-  const list = accuracy === 100 ? PRAISE.perfect : accuracy >= 80 ? PRAISE.great : accuracy >= 50 ? PRAISE.good : PRAISE.tough;
-  return list[Math.floor(rnd() * list.length)];
+/** Which praise to show after a round; the phrases are in the locale files (praise.<level>). */
+export function praiseLevel(accuracy) {
+  return accuracy === 100 ? "perfect" : accuracy >= 80 ? "great" : accuracy >= 50 ? "good" : "tough";
 }

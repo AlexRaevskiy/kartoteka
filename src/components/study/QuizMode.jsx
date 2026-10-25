@@ -4,6 +4,7 @@
  * The example sentence appears after answering.
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Check, X } from "lucide-react";
 import { BoxBadge, ExampleSentence, SpeakButton } from "../ui.jsx";
 import RatingHint from "./RatingHint.jsx";
@@ -30,6 +31,7 @@ function buildOptions(card, cards, reverse) {
 }
 
 export default function QuizMode({ card, deck, pool, reverse, onAnswer, keyboardEnabled, onSpeak, tracked, goal }) {
+  const { t } = useTranslation();
   const prompt = reverse ? card.definition : card.term;
   const promptLang = speechLang(deck, reverse ? "definition" : "term", prompt);
   // Options are fixed for this card (the component is re-mounted per card).
@@ -83,7 +85,7 @@ export default function QuizMode({ card, deck, pool, reverse, onAnswer, keyboard
     <div className="flex flex-col gap-4 w-full max-w-2xl mx-auto fc-in">
       <div className="fc-panel p-5 sm:p-7">
         <div className="flex items-center justify-between gap-2">
-          <span className="fc-eyebrow">{reverse ? "Выберите термин" : "Выберите определение"}</span>
+          <span className="fc-eyebrow">{reverse ? t("quiz.pickTerm") : t("quiz.pickDefinition")}</span>
           <div className="flex items-center gap-1">
             <BoxBadge box={card.box} />
             <SpeakButton text={prompt} lang={promptLang} onSpeak={onSpeak} />
@@ -118,7 +120,7 @@ export default function QuizMode({ card, deck, pool, reverse, onAnswer, keyboard
         {picked === null ? (
           <p className="text-body-sm text-on-surface-variant">
             <span className="hidden sm:inline">
-              Клавиши <span className="fc-kbd">1</span>–<span className="fc-kbd">{options.length}</span> — ответ.{" "}
+              {t("quiz.keys")} <span className="fc-kbd">1</span>–<span className="fc-kbd">{options.length}</span> — {t("quiz.keysAnswer")}{" "}
             </span>
             <RatingHint card={card} tracked={tracked} goal={goal} />
           </p>
@@ -132,13 +134,13 @@ export default function QuizMode({ card, deck, pool, reverse, onAnswer, keyboard
             <div className="flex flex-wrap items-center justify-between gap-3">
               {isRight ? (
                 <p className="fc-good font-medium inline-flex items-center gap-2">
-                  <Check size={18} /> Верно
+                  <Check size={18} /> {t("quiz.right")}
                 </p>
               ) : (
-                <p className="fc-bad font-medium">Неверно — правильный ответ отмечен зелёным.</p>
+                <p className="fc-bad font-medium">{t("quiz.wrong")}</p>
               )}
               <button type="button" className="fc-btn fc-btn-primary px-4 py-2.5" onClick={() => finish(isRight)} autoFocus={!isRight}>
-                Дальше <span className="fc-kbd hidden sm:inline">Enter</span>
+                {t("common.next")} <span className="fc-kbd hidden sm:inline">Enter</span>
               </button>
             </div>
           </>

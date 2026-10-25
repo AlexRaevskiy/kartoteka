@@ -5,10 +5,12 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import { Lock, UserRound } from "lucide-react";
-import { BOXES, deckStats, plural } from "../lib/leitner.js";
+import { useTranslation } from "react-i18next";
+import { BOXES, deckStats } from "../lib/leitner.js";
 import { cx } from "../lib/utils.js";
 
 export default function DeckListItem({ deck, now, trailing, selected }) {
+  const { t } = useTranslation();
   const s = deckStats(deck, now);
   return (
     <div className={cx("rounded-2xl flex items-center gap-2 pr-1", selected ? "bg-secondary-container" : "bg-surface-container-low")}>
@@ -18,19 +20,19 @@ export default function DeckListItem({ deck, now, trailing, selected }) {
             <div className="text-title-md truncate">{deck.title}</div>
             <div className="text-body-sm text-on-surface-variant mt-0.5 flex items-center gap-1.5 flex-wrap">
               <span className="fc-tabular">
-                {s.total} {plural(s.total, ["карточка", "карточки", "карточек"])}
+                {t("deck.cardCount", { count: s.total })}
               </span>
               {!deck.own ? (
                 <span className="inline-flex items-center gap-1">
-                  · <UserRound size={12} /> {deck.ownerName || "автор"}
+                  · <UserRound size={12} /> {deck.ownerName || t("deck.author")}
                 </span>
               ) : null}
             </div>
           </div>
           {s.due > 0 ? (
-            <span className="fc-badge fc-badge-primary fc-tabular shrink-0">{s.due} к повтору</span>
+            <span className="fc-badge fc-badge-primary fc-tabular shrink-0">{t("deckItem.due", { count: s.due })}</span>
           ) : s.total > 0 && s.mastered === s.total ? (
-            <span className="fc-badge fc-badge-good shrink-0">выучено</span>
+            <span className="fc-badge fc-badge-good shrink-0">{t("deckItem.mastered")}</span>
           ) : null}
         </div>
         {s.total ? (
@@ -46,10 +48,11 @@ export default function DeckListItem({ deck, now, trailing, selected }) {
 
 /** Placeholder row for a deck in a shared folder that you can't open. */
 export function UnavailableDeckItem() {
+  const { t } = useTranslation();
   return (
     <div className="rounded-2xl bg-surface-container-low p-4 flex items-center gap-3 text-on-surface-variant">
       <Lock size={18} />
-      <span className="text-body-md">Закрытый набор — автор не открыл к нему доступ</span>
+      <span className="text-body-md">{t("deckItem.unavailable")}</span>
     </div>
   );
 }

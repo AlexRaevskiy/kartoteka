@@ -16,6 +16,7 @@
  */
 import React, { useCallback, useEffect } from "react";
 import { Navigate, Outlet, Route, Routes, useLocation } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { AlertTriangle, BellRing, Info } from "lucide-react";
 
 import { AuthContext, useAuth } from "./data/useAuth.js";
@@ -83,9 +84,16 @@ function useThemeSync(theme) {
 
 function Workspace() {
   const lib = useLibrary();
+  const { t, i18n } = useTranslation();
   const toast = useToast();
   const location = useLocation();
   useThemeSync(lib.settings.theme);
+
+  // Remember the interface language on the profile, so push reminders arrive in it too.
+  const language = i18n.resolvedLanguage;
+  useEffect(() => {
+    if (lib.status === "ready" && language && lib.settings.language !== language) lib.actions.updateSettings({ language });
+  }, [lib.status, lib.settings.language, language, lib.actions]);
   useEffect(() => {
     warmUpVoices();
   }, []);
@@ -105,7 +113,7 @@ function Workspace() {
   }, [toast]);
 
   if (lib.status === "error") return <LibraryError message={lib.error} />;
-  if (lib.status !== "ready") return <Splash label="Загружаем ваши наборы…" />;
+  if (lib.status !== "ready") return <Splash label={t("splash.loadingLibrary")} />;
 
   return (
     <Routes>

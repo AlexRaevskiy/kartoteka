@@ -1,9 +1,10 @@
 /**
  * Mode: Leitner flashcards.
  * Tap / Space flips. Rate with the buttons, ← / → keys, or by swiping the card
- * (right = Знаю, left = Ещё учу). The example sentence is on the back.
+ * (right = know, left = still learning). The example sentence is on the back.
  */
 import React, { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Check, Undo2 } from "lucide-react";
 import { BoxBadge, ExampleSentence, SpeakButton } from "../ui.jsx";
 import RatingHint from "./RatingHint.jsx";
@@ -14,6 +15,7 @@ const SWIPE_THRESHOLD = 90; // px
 const TAP_SLOP = 8; // px
 
 export default function FlashcardMode({ card, deck, reverse, onAnswer, keyboardEnabled, onSpeak, tracked, goal }) {
+  const { t } = useTranslation();
   const [flipped, setFlipped] = useState(false);
   const [dx, setDx] = useState(0);
   const [dragging, setDragging] = useState(false);
@@ -83,15 +85,15 @@ export default function FlashcardMode({ card, deck, reverse, onAnswer, keyboardE
       <div className="fc-scene w-full max-w-2xl mx-auto">
         <div className={cx("fc-swipe relative", dragging && "is-dragging")} style={{ transform: dx ? `translateX(${dx}px) rotate(${dx / 24}deg)` : undefined }}>
           <span className="fc-swipe-label fc-good" style={{ left: "1rem", opacity: Math.min(1, Math.max(0, dx / SWIPE_THRESHOLD)) }} aria-hidden="true">
-            Знаю
+            {t("rate.know")}
           </span>
           <span className="fc-swipe-label fc-warn" style={{ right: "1rem", opacity: Math.min(1, Math.max(0, -dx / SWIPE_THRESHOLD)) }} aria-hidden="true">
-            Ещё учу
+            {t("rate.again")}
           </span>
           <div
             role="button"
             tabIndex={0}
-            aria-label={flipped ? `Ответ: ${back}. Enter — показать вопрос.` : `Вопрос: ${front}. Enter — показать ответ.`}
+            aria-label={flipped ? t("flashcard.answerAria", { text: back }) : t("flashcard.questionAria", { text: front })}
             className={cx("fc-flip fc-focus", flipped && "is-flipped")}
             style={{ height: "clamp(18rem, 55vh, 28rem)" }}
             onPointerDown={onPointerDown}
@@ -114,8 +116,11 @@ export default function FlashcardMode({ card, deck, reverse, onAnswer, keyboardE
                 <div className="fc-term text-headline-lg sm:text-[2.75rem]">{front}</div>
               </div>
               <div className="text-body-sm text-on-surface-variant text-center pb-4">
-                Нажмите, чтобы перевернуть <span className="hidden sm:inline">· <span className="fc-kbd">Пробел</span></span>
-                <span className="sm:hidden"> · свайп — оценка</span>
+                {t("flashcard.tapToFlip")}{" "}
+                <span className="hidden sm:inline">
+                  · <span className="fc-kbd">{t("flashcard.space")}</span>
+                </span>
+                <span className="sm:hidden"> · {t("flashcard.swipeToRate")}</span>
               </div>
             </div>
             <div className="fc-face fc-back fc-ruled" aria-hidden={!flipped}>
@@ -134,10 +139,10 @@ export default function FlashcardMode({ card, deck, reverse, onAnswer, keyboardE
 
       <div className="grid grid-cols-2 gap-3 w-full max-w-2xl mx-auto">
         <button type="button" className="fc-btn fc-btn-warn fc-btn-lg" onClick={() => onAnswer("again")}>
-          <Undo2 size={20} /> Ещё учу <span className="fc-kbd hidden sm:inline">←</span>
+          <Undo2 size={20} /> {t("rate.again")} <span className="fc-kbd hidden sm:inline">←</span>
         </button>
         <button type="button" className="fc-btn fc-btn-good fc-btn-lg" onClick={() => onAnswer("know")}>
-          <Check size={20} /> Знаю <span className="fc-kbd hidden sm:inline">→</span>
+          <Check size={20} /> {t("rate.know")} <span className="fc-kbd hidden sm:inline">→</span>
         </button>
       </div>
       <p className="text-body-sm text-on-surface-variant text-center max-w-2xl mx-auto">

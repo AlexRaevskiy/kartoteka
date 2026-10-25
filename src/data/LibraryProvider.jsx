@@ -18,17 +18,18 @@ import { migrateLegacyDecks, profileBackfill } from "./migrate.js";
 import { DEFAULT_SETTINGS, FOLDER_COLORS, MAX_CARDS_PER_DECK, newCard, normalizeProgress, uid as makeId, withProgress } from "../lib/model.js";
 import { dateKey, nextProgress } from "../lib/leitner.js";
 import { applyActivity, localDateKey } from "../lib/goals.js";
+import i18n from "../i18n/index.js";
 
 const LibraryContext = createContext(null);
 export const useLibrary = () => useContext(LibraryContext);
 
 function friendlyError(err) {
   const code = err?.code || "";
-  if (code.includes("permission-denied")) return "База данных отказала в доступе. Опубликуйте правила из firestore.rules (Firebase Console → Firestore → Rules).";
-  if (code.includes("unavailable")) return "Нет связи с базой. Изменения сохранятся на устройстве и отправятся позже.";
-  if (code.includes("resource-exhausted")) return "Дневная квота бесплатной базы исчерпана. Попробуйте завтра.";
-  if (code.includes("failed-precondition")) return "Нужен индекс Firestore — откройте ссылку из консоли браузера, чтобы создать его.";
-  return err?.message || "Не удалось сохранить изменения.";
+  if (code.includes("permission-denied")) return i18n.t("library.errors.permissionDenied");
+  if (code.includes("unavailable")) return i18n.t("library.errors.unavailable");
+  if (code.includes("resource-exhausted")) return i18n.t("library.errors.quota");
+  if (code.includes("failed-precondition")) return i18n.t("library.errors.index");
+  return err?.message || i18n.t("library.errors.saveFailed");
 }
 
 /** Enrich a deck with this user's progress and stars. */
@@ -45,7 +46,7 @@ function enrichDeck(deck, entry, uid) {
 
 export function LibraryProvider({ user, onError, children }) {
   const uid = user.uid;
-  const ownerName = user.displayName || (user.isAnonymous ? "Гость" : user.email?.split("@")[0]) || "Пользователь";
+  const ownerName = user.displayName || (user.isAnonymous ? i18n.t("profile.guest") : user.email?.split("@")[0]) || i18n.t("library.user");
 
   const [profile, setProfile] = useState(null);
   const [ownDecks, setOwnDecks] = useState(null); // Map id → deck
@@ -146,7 +147,7 @@ export function LibraryProvider({ user, onError, children }) {
     if (profile.displayName !== ownerName) patch.displayName = ownerName;
     if (Object.keys(patch).length) store.patchUser(uid, patch).catch(report);
     migrateLegacyDecks(uid, ownerName)
-      .then((n) => n && onErrorRef.current?.(`Перенесено наборов из прежней версии: ${n}`, { info: true }))
+      .then((n) => n && onErrorRef.current?.(i18n.t("library.migrated", { count: n }), { info: true }))
       .catch(report);
   }, [profile, ownDecks, uid, ownerName, report]);
 
@@ -216,6 +217,7 @@ export function LibraryProvider({ user, onError, children }) {
           id,
           ownerId: asEditor ? draft.ownerId : uid,
           ownerName: asEditor ? draft.ownerName : ownerName,
+          ownerPhotoURL: asEditor ? draft.ownerPhotoURL || "" : user.photoURL || "",
           createdAt: draft.createdAt || now,
           updatedAt: now,
           cards: draft.cards.filter((c) => c.term.trim() || c.definition.trim()).slice(0, MAX_CARDS_PER_DECK),
@@ -240,7 +242,7 @@ export function LibraryProvider({ user, onError, children }) {
           id,
           ownerId: uid,
           ownerName,
-          title: deck.own ? `${deck.title} (копия)` : deck.title,
+          title: deck.own ? i18n.t("library.copyTitle", { title: deck.title }) : deck.title,
           description: deck.description,
           termLang: deck.termLang,
           defLang: deck.defLang,
@@ -292,7 +294,7 @@ export function LibraryProvider({ user, onError, children }) {
           id,
           ownerId: uid,
           ownerName,
-          name: name.trim().slice(0, 80) || "Папка",
+          name: name.trim().slice(0, 80) || i18n.t("home.folder"),
           color: FOLDER_COLORS[L().folders.length % FOLDER_COLORS.length],
           deckIds,
           tags: [],
@@ -411,7 +413,7 @@ export function LibraryProvider({ user, onError, children }) {
 
 /**
  * Write parsed backup data ({ decks, folders } from lib/backup.readBackup) into a user's account.
- * Used by "Восстановить из копии" and when a guest's decks move into an existing Google account.
+ * Used by "Restore from backup" and when a guest's decks move into an existing Google account.
  */
 export async function restoreInto(uid, ownerName, { decks, folders = [] }) {
   const now = Date.now();

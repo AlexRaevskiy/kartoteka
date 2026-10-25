@@ -1,6 +1,6 @@
 /**
  * Smart push reminders — pure decision logic shared by:
- *   - the app (Profile → Уведомления: computes the UTC hours to store)
+ *   - the app (Profile → Reminders: computes the UTC hours to store)
  *   - netlify/functions/send-reminders.mjs (runs every hour and decides who gets a push)
  *
  * Rule: a reminder is sent at the user's chosen local hour(s) ONLY if today's goal is not met.
@@ -8,6 +8,7 @@
  */
 import { addDaysToKey, dateKeyInTimeZone, goalStatus, hourInTimeZone, todayProgress } from "./goals.js";
 
+// Same order in every language: 0 streak at risk · 1 nudge · 2 evening · 3 started today · 4 missed days.
 export const PUSH_MESSAGES = [
   "Твой ударный режим в опасности! Пора спасать огонёк 🔥",
   "Карточки сами себя не выучат. Удели всего 5 минут! 🧠",
@@ -15,6 +16,17 @@ export const PUSH_MESSAGES = [
   "Ты уже на пути к цели! Зайди и добей сегодняшний раунд 🎯",
   "Эй, мы скучаем! Твои колоды заждались тебя 👀",
 ];
+
+export const PUSH_MESSAGES_EN = [
+  "Your streak is in danger! Time to save the flame 🔥",
+  "Cards don't learn themselves. Just 5 minutes! 🧠",
+  "4 hours left in the day — perfect time to hit your goal and relax ☕️",
+  "You're on your way! Come back and finish today's round 🎯",
+  "Hey, we miss you! Your sets are waiting 👀",
+];
+
+/** Messages in the user's interface language (users/{uid}.settings.language, saved by the app). */
+export const pushMessagesFor = (user) => (user?.settings?.language === "en" ? PUSH_MESSAGES_EN : PUSH_MESSAGES);
 
 export const REMINDER_SCHEDULES = {
   evening: { label: "Раз в день вечером", hours: [20] },
@@ -68,6 +80,6 @@ export function decideReminder(user, now = new Date(), rnd = Math.random) {
   else if (isEvening) candidates = [2, 1];
   else candidates = [1];
 
-  const message = PUSH_MESSAGES[candidates[Math.floor(rnd() * candidates.length)]];
+  const message = pushMessagesFor(user)[candidates[Math.floor(rnd() * candidates.length)]];
   return { send: true, message, slotKey };
 }

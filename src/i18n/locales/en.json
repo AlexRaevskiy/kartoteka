@@ -64,7 +64,13 @@
     "schedules": {
       "evening": "Once a day, in the evening",
       "morning_evening": "Morning and evening"
-    }
+    },
+    "linkedGoogle": "Done! Sign in with Google on any device.",
+    "signOutGuest": {
+      "title": "Leave guest mode?",
+      "message": "Guest sets can't be recovered. Save them to Google or export them first."
+    },
+    "signOutConfirm": "Sign out?"
   },
   "toast": {
     "notificationsUnsupported": "Notifications are not supported",
@@ -101,6 +107,626 @@
   "pwa": {
     "iosHint": "Install Kartoteka to your Home Screen for offline access and reminders. Tap the Share icon below and select 'Add to Home Screen' ➕",
     "iosHintClose": "Dismiss hint",
-    "iosHintAria": "How to install the app"
+    "iosHintAria": "How to install the app",
+    "updateAvailable": "A new version is available.",
+    "update": "Update",
+    "later": "Later",
+    "installTitle": "Install Kartoteka",
+    "installBody": "Open it from your home screen like an app. Works offline.",
+    "install": "Install",
+    "hide": "Hide"
+  },
+  "common": {
+    "retry": "Retry",
+    "cancel": "Cancel",
+    "save": "Save",
+    "close": "Close",
+    "back": "Back",
+    "done": "Done",
+    "delete": "Delete",
+    "edit": "Edit",
+    "loading": "Loading",
+    "share": "Share",
+    "linkCopied": "Link copied",
+    "nothingFound": "Nothing found",
+    "next": "Next"
+  },
+  "splash": {
+    "opening": "Opening your card box…",
+    "loadingLibrary": "Loading your sets…"
+  },
+  "setup": {
+    "title": "Connect Firebase",
+    "missing": "These environment variables are missing:",
+    "step1": "Copy .env.example to .env.local and fill in the values.",
+    "step2": "Restart npm run dev.",
+    "step3": "On Netlify, add the same variables and run “Clear cache and deploy”."
+  },
+  "libraryError": {
+    "title": "Couldn't load your sets"
+  },
+  "speech": {
+    "cloudFailed": "Cloud voice didn't work: {{reason}}.",
+    "noDeviceVoice": "This device has no voice for {{language}}.",
+    "unsupported": "This browser can't read text aloud."
+  },
+  "auth": {
+    "tagline": "Leitner flashcards. A few minutes a day, and the words stay with you.",
+    "google": "Continue with Google",
+    "apple": "Continue with Apple",
+    "emailButton": "Continue with email",
+    "or": "or",
+    "guest": "Try without an account",
+    "guestHint": "Guest sets are stored in the cloud but tied to this browser. You can connect Google later and keep everything.",
+    "email": {
+      "title": "Email sign-in",
+      "signInTab": "Sign in",
+      "signUpTab": "Sign up",
+      "name": "Name",
+      "email": "Email",
+      "password": "Password",
+      "passwordHint": "At least 6 characters.",
+      "showPassword": "Show password",
+      "hidePassword": "Hide password",
+      "signIn": "Sign in",
+      "signUp": "Create account",
+      "forgot": "Forgot password?",
+      "resetTitle": "Reset password",
+      "resetHint": "We'll send a link to set a new password to this email.",
+      "sendReset": "Send link",
+      "resetSent": "Link sent to {{email}}. Check your inbox and spam folder.",
+      "backToSignIn": "Back to sign in",
+      "otherMethods": "Other options"
+    },
+    "errors": {
+      "unauthorizedDomain": "This domain isn't allowed to sign in yet. Add “{{host}}” in Firebase Console → Authentication → Settings → Authorized domains.",
+      "operationNotAllowed": "This sign-in method is turned off. Enable it in Firebase Console → Authentication → Sign-in method.",
+      "network": "No connection. Check your internet and try again.",
+      "tooManyRequests": "Too many attempts. Please wait a minute.",
+      "popupBlocked": "The sign-in window was blocked. Allow pop-ups for this site and try again.",
+      "storageBlocked": "Your browser blocks the storage needed to sign in. Turn off private mode or cookie blocking and try again.",
+      "wrongCredentials": "Wrong email or password.",
+      "emailInUse": "This email is already used by another account.",
+      "differentProvider": "An account with this email already exists — sign in the way you signed up (Google, Apple or email).",
+      "invalidEmail": "Check the email address.",
+      "weakPassword": "The password must be at least 6 characters.",
+      "recentLogin": "Please confirm it's you to make this change.",
+      "userMismatch": "Confirm with the same account you're signed in with.",
+      "unknown": "Something went wrong{{code}}. {{message}}"
+    }
+  },
+  "profileEdit": {
+    "open": "Edit profile",
+    "title": "Edit profile",
+    "name": "Name",
+    "email": "Email",
+    "photoURL": "Photo URL",
+    "photoPreview": "This is how your avatar will look. Paste a direct link to an image (https://…).",
+    "photoInvalid": "The photo link must start with https:// or http://.",
+    "emailHint": "We'll send a link to the new address — the email changes once you open it.",
+    "emailSent": "We sent an email to {{email}}. Open the link in it to change your address.",
+    "saved": "Profile saved",
+    "reauthNeeded": "To change your email, please confirm it's you.",
+    "reauthTitle": "Confirm sign-in",
+    "reauthPassword": "Confirm with password",
+    "reauthProvider": "Confirm with {{provider}}"
+  },
+  "modes": {
+    "flashcards": {
+      "label": "Flashcards",
+      "hint": "Leitner"
+    },
+    "learn": {
+      "label": "Learn",
+      "hint": "Quiz + writing"
+    },
+    "quiz": {
+      "label": "Test",
+      "hint": "4 options"
+    },
+    "write": {
+      "label": "Write",
+      "hint": "With checking"
+    }
+  },
+  "deck": {
+    "loading": "Loading set",
+    "privateTitle": "This set is private",
+    "privateBody": "Only the author can see this set. Ask them to share it by link.",
+    "privateBodyNamed": "Only the author can see “{{title}}”. Ask them to share it by link.",
+    "notFoundTitle": "Set not found",
+    "notFoundBody": "It may have been deleted, or the link is incomplete.",
+    "nowPublic": "Anyone with the link can now open this set",
+    "nowPrivate": "Now only you can see this set",
+    "shareText": "Flashcard set “{{title}}”",
+    "menu": {
+      "download": "Download",
+      "addToClass": "Add to class",
+      "copy": "Make a copy",
+      "reset": "Reset progress",
+      "info": "Info",
+      "delete": "Delete set",
+      "remove": "Remove from library"
+    },
+    "classesSoon": "Classes and groups are coming soon 🙂",
+    "copied": "Copy created — its progress starts from zero",
+    "resetConfirm": {
+      "title": "Reset progress?",
+      "message": "All cards go back to “Not studied”. This can't be undone.",
+      "confirm": "Reset"
+    },
+    "resetDone": "Progress reset",
+    "deleteConfirm": {
+      "title": "Delete set?",
+      "message": "“{{title}}” will disappear for you and everyone you shared it with."
+    },
+    "removeConfirm": {
+      "title": "Remove from library?",
+      "message": "The set stays with its author; your progress will be deleted.",
+      "confirm": "Remove"
+    },
+    "deleted": "Set deleted",
+    "removed": "Set removed from library",
+    "seoDescription_one": "Flashcard set “{{title}}”: {{count}} card.",
+    "seoDescription_other": "Flashcard set “{{title}}”: {{count}} cards.",
+    "addToFolder": "Add to folder",
+    "actions": "Set actions",
+    "emptyTitle": "This set has no cards",
+    "emptyBody": "Add some in the editor.",
+    "you": "You",
+    "author": "Author",
+    "cardCount_one": "{{count}} card",
+    "cardCount_other": "{{count}} cards",
+    "badgePublic": "by link",
+    "badgePassword": "password",
+    "progress": {
+      "title": "Your progress",
+      "aria": "Your progress. Choose a goal and start",
+      "notStudied": "Not studied",
+      "learning": "Still learning",
+      "mastered": "Mastered"
+    },
+    "terms": "Terms",
+    "sort": "Sort",
+    "sortOriginal": "Original order",
+    "sortAlpha": "Alphabetical",
+    "whatToStudy": "What to study",
+    "studyAll": "Study all",
+    "studyStarred": "Study starred ({{count}})",
+    "unstar": "Unstar “{{term}}”",
+    "star": "Star “{{term}}”",
+    "studyThisSet": "Study this set"
+  },
+  "share": {
+    "anyoneWithLink": "Anyone with the link",
+    "failed": "Couldn't share — copy the link manually",
+    "copyLink": "Copy link",
+    "copyFailed": "Couldn't copy",
+    "shareEllipsis": "Share…",
+    "whoCanOpen": "Who can open it",
+    "passwordHint": "Set the password in the set settings (Edit → gear).",
+    "folderHint": "Private sets inside the folder stay private — others will only see the public ones.",
+    "privateWarning": "Right now only you have access: others will see “Private” by the link."
+  },
+  "visibility": {
+    "public": {
+      "label": "Everyone",
+      "hint": "Anyone with the link"
+    },
+    "password": {
+      "label": "Password",
+      "hint": "Only people who know the password"
+    },
+    "private": {
+      "label": "Only me",
+      "hint": "Only you can see this set"
+    }
+  },
+  "editPolicy": {
+    "password": {
+      "label": "Password",
+      "hint": "People who know the password can edit"
+    },
+    "owner": {
+      "label": "Only me",
+      "hint": "Only you can edit"
+    }
+  },
+  "folder": {
+    "shareText": "Folder “{{title}}”",
+    "new": {
+      "title": "New folder",
+      "label": "Name",
+      "placeholder": "e.g. Georgian",
+      "confirm": "Create"
+    },
+    "created": "Folder “{{name}}” created",
+    "setCount_one": "{{count}} set",
+    "setCount_other": "{{count}} sets"
+  },
+  "folderPicker": {
+    "empty": "No folders yet. Create one — this set goes straight into it."
+  },
+  "goalSheet": {
+    "title": "Choose a goal for these sessions",
+    "subtitle": "How do you want to study this set?",
+    "starredOnly": "Starred only: {{count}}",
+    "start": "Start learning",
+    "cram": {
+      "title": "Cram for a test",
+      "body": "Quickly drill every card without waiting for Leitner intervals. Mistakes are still remembered."
+    },
+    "memorize": {
+      "title": "Memorize it all",
+      "body": "Classic Leitner: only the cards that are due. Best for long-term memory."
+    }
+  },
+  "download": {
+    "title": "Download cards",
+    "txt": "Text (.txt)",
+    "txtHint": "term ⇥ definition ⇥ example — can be pasted back via “Import”",
+    "csv": "Spreadsheet (.csv)",
+    "csvHint": "for Excel and Google Sheets"
+  },
+  "info": {
+    "title": "Set info",
+    "description": "Description",
+    "created": "Created",
+    "updated": "Updated",
+    "cards": "Cards",
+    "termLang": "Term language",
+    "defLang": "Definition language",
+    "whoSees": "Who can see",
+    "whoEdits": "Who can edit"
+  },
+  "languages": {
+    "auto": "Detect automatically"
+  },
+  "editor": {
+    "noAccess": "You can't edit this set",
+    "maxCards": "A set can have up to {{max}} cards",
+    "leaveConfirm": {
+      "title": "Leave without saving?",
+      "message": "Your changes will be lost.",
+      "confirm": "Leave"
+    },
+    "errors": {
+      "title": "Enter a title",
+      "noCards": "Add at least one card with a term and a definition",
+      "halfCards": "Some cards are missing a term or a definition",
+      "setPassword": "Set a password (at least 4 characters)",
+      "passwordShort": "At least 4 characters"
+    },
+    "saved": "Changes saved",
+    "created": "Set created",
+    "imported_one": "Added {{count}} card",
+    "imported_other": "Added {{count}} cards",
+    "seoTitle": "Set editor",
+    "editTitle": "Edit set",
+    "newTitle": "New set",
+    "settings": "Set settings",
+    "titlePlaceholder": "Set title",
+    "titleLabel": "TITLE",
+    "descriptionPlaceholder": "Description (optional)",
+    "descriptionLabel": "DESCRIPTION",
+    "import": "Import list",
+    "swapSides": "Swap sides",
+    "example": "Example",
+    "deleteCard": "Delete card {{n}}",
+    "termLabel": "TERM",
+    "definitionLabel": "DEFINITION",
+    "exampleLabel": "EXAMPLE SENTENCE",
+    "addCard": "Add card",
+    "filled": "{{count}} of {{max}} cards filled in",
+    "langHint": "The language is used to pronounce words with the right accent.",
+    "onlyAuthorAccess": "Only the author can change who has access.",
+    "whoCanView": "Who can view",
+    "whoCanEdit": "Who can edit",
+    "password": "Set password",
+    "passwordKeep": "Leave empty to keep it",
+    "passwordHint": "One password for viewing and editing. Changing it revokes old access.",
+    "importHint": "One card per line: term — definition — example. Tabs, |, dashes, = and : all work",
+    "add": "Add",
+    "openFile": "Open .txt / .csv",
+    "wordList": "Word list",
+    "definitionFirst": "My list has the definition first",
+    "recognized": "Recognized: {{count}}",
+    "skipped": "lines skipped: {{count}}",
+    "noSeparator": "No separator: lines {{lines}}"
+  },
+  "folderScreen": {
+    "privateTitle": "This folder is private",
+    "privateBody": "The author hasn't shared it by link.",
+    "notFoundTitle": "Folder not found",
+    "notFoundBody": "It may have been deleted.",
+    "newTag": {
+      "title": "New tag",
+      "message": "A tag groups sets inside the folder, e.g. “Exam 1”.",
+      "label": "Tag name",
+      "placeholder": "Exam 1",
+      "chip": "New tag"
+    },
+    "menu": {
+      "addMaterials": "Add study material",
+      "tags": "Add/remove tags",
+      "edit": "Edit folder",
+      "delete": "Delete folder"
+    },
+    "deleteConfirm": {
+      "title": "Delete folder?",
+      "message": "“{{name}}” will disappear, but its sets stay in your library."
+    },
+    "deleted": "Folder deleted",
+    "seoDescription": "Folder “{{name}}” on Kartoteka: {{sets}} of Leitner flashcards.",
+    "actions": "Folder actions",
+    "search": "Search in folder",
+    "tagFilter": "Filter by tag",
+    "allTags": "All",
+    "sortRecent": "Recent",
+    "sortTitle": "By title",
+    "emptyTitle": "This folder is empty",
+    "emptyOwn": "Add sets here — one set can be in several folders at once.",
+    "emptyOther": "The author hasn't added anything yet.",
+    "addSets": "Add sets",
+    "addSetsAria": "Add sets to folder",
+    "studyAll": "Study all",
+    "nowPublic": "Folder shared by link",
+    "nowPrivate": "Folder is private again",
+    "searchSets": "Search sets",
+    "noSets": "You don't have any sets yet.",
+    "tagsTitle": "Folder tags",
+    "tagsSubtitle": "Tick the sets that belong to the tag",
+    "addSetsFirst": "Add sets to the folder first.",
+    "deleteTagConfirm": {
+      "title": "Delete tag “{{name}}”?",
+      "message": "The sets stay in the folder."
+    },
+    "deleteTag": "Delete tag",
+    "deleteTagNamed": "Delete tag {{name}}",
+    "noTags": "No tags yet. Create one, e.g. “Exam 1”.",
+    "color": "Color",
+    "colorAria": "Folder color",
+    "tags": "Tags",
+    "tagN": "Tag {{n}}"
+  },
+  "time": {
+    "today": "today",
+    "tomorrow": "tomorrow",
+    "inDays_one": "in {{count}} day",
+    "inDays_other": "in {{count}} days"
+  },
+  "study": {
+    "deckUnavailable": "Set unavailable",
+    "folderUnavailable": "Folder unavailable",
+    "goalMet": "Today's goal is done! The flame is burning 🔥",
+    "cardMastered": "“{{term}}” — mastered!",
+    "termFirst": "Term first",
+    "definitionFirst": "Definition first",
+    "switchToCram": "Cram for a test (all cards)",
+    "switchToMemorize": "Memorize it all (Leitner)",
+    "seo": "study",
+    "exit": "Exit",
+    "summary": "Round summary",
+    "cram": "Cram",
+    "leitner": "Leitner",
+    "retryRound": "Mistakes review",
+    "round": "Round {{n}}",
+    "menu": "Mode and settings",
+    "roundProgress": "Round progress",
+    "noStarred": "No starred cards",
+    "noCards": "No cards here yet",
+    "allDoneToday": "All done for today 🎉",
+    "allReviewedToday": "Everything reviewed for today 🎉",
+    "nextReview": "Next review {{when}}: {{cards}}. Want more practice? Turn on Cram — it doesn't break the schedule.",
+    "allMastered": "All cards are mastered. You can review them in Cram mode.",
+    "cramAll": "Cram: review all",
+    "finish": "Finish",
+    "passedAll": "You've gone through all the cards",
+    "passedAllBody": "Start over or go back to the regular Leitner schedule.",
+    "again": "Another round"
+  },
+  "deckItem": {
+    "due": "{{count}} due",
+    "mastered": "mastered",
+    "unavailable": "Private set — the author hasn't shared it"
+  },
+  "home": {
+    "sync": {
+      "saved": "Saved",
+      "saving": "Saving…",
+      "offline": "Offline: changes will sync later"
+    },
+    "folder": "Folder",
+    "cardsWaiting_one": "{{count}} card due for review",
+    "cardsWaiting_other": "{{count}} cards due for review",
+    "masteredPct": "{{pct}}% mastered",
+    "continueStudying": "Continue studying",
+    "continueAria": "Continue: {{title}}",
+    "continue": "Continue",
+    "helloName": "Hi, {{name}}!",
+    "hello": "Hi!",
+    "folders": "Folders",
+    "newFolder": "New",
+    "createFolder": "Create folder",
+    "mySets": "My sets",
+    "emptyTitle": "Your card box is empty",
+    "emptyBody": "Create your first set: type words by hand or paste a ready list “word — translation — example”.",
+    "createSet": "Create set",
+    "pasteList": "Paste a list"
+  },
+  "diff": {
+    "aria": "Differences: {{count}}",
+    "you": "You",
+    "correct": "Correct",
+    "missingLetter": "missing letter",
+    "red": "Red",
+    "redMeaning": "wrong or extra letter",
+    "green": "green",
+    "greenMeaning": "the right one"
+  },
+  "ratingHint": {
+    "retry": "Mistakes review: Leitner boxes don't change.",
+    "cram": "Cram: mistakes send the card to box 1, right answers don't move the schedule.",
+    "know": "Know → box {{box}}",
+    "mastered": " (mastered)",
+    "nextReview": ", next review {{when}}",
+    "almost": " Almost → stays in box {{box}}.",
+    "again": " Still learning → box 1, tomorrow."
+  },
+  "rate": {
+    "know": "Know",
+    "again": "Still learning"
+  },
+  "flashcard": {
+    "answerAria": "Answer: {{text}}. Enter — show the question.",
+    "questionAria": "Question: {{text}}. Enter — show the answer.",
+    "tapToFlip": "Tap to flip",
+    "space": "Space",
+    "swipeToRate": "swipe to rate"
+  },
+  "quiz": {
+    "pickTerm": "Choose the term",
+    "pickDefinition": "Choose the definition",
+    "keys": "Keys",
+    "keysAnswer": "to answer.",
+    "right": "Correct",
+    "wrong": "Wrong — the right answer is marked green."
+  },
+  "summary": {
+    "retryTitle": "Review summary",
+    "correct": "correct",
+    "toRepeat": "to review",
+    "accuracy": "Accuracy",
+    "firstTry": "{{pct}}% on the first try",
+    "partial": "{{count}} with partial credit",
+    "mistakes": "Words with mistakes",
+    "noMistakesMore": "No mistakes — keep going!",
+    "noMistakesDone": "No mistakes — that's all the cards for today.",
+    "skipMistakes": "Skip mistakes — next round"
+  },
+  "praise": {
+    "perfect": [
+      "Flawless! Not a single mistake 🎉",
+      "A perfect round! Keep it up!",
+      "100% — you're a machine!"
+    ],
+    "great": [
+      "Great work!",
+      "Really good, almost no mistakes!",
+      "Strong! Just a little more."
+    ],
+    "good": [
+      "Good round! Mistakes are part of learning.",
+      "Not bad! Shall we review the tricky words?",
+      "You're on the right track!"
+    ],
+    "tough": [
+      "A tough round — but that's exactly how we learn.",
+      "Don't give up: reviewing mistakes makes words stick.",
+      "Every mistake today is a word learned tomorrow."
+    ]
+  },
+  "write": {
+    "typeTerm": "Type the term",
+    "typeDefinition": "Type the definition",
+    "yourAnswer": "Your answer",
+    "fixTypo": "Fix the typo and check again",
+    "check": "Check",
+    "moreLetter": "Another letter",
+    "hint": "Hint",
+    "dontKnow": "I don't know",
+    "secondTryNote": "Second try: a right answer gets partial credit.",
+    "hintNote": "With a hint — partial credit.",
+    "georgianKeyboard": "Georgian keyboard needed.",
+    "caseInsensitive": "Case doesn't matter.",
+    "correct": "Correct!",
+    "correctPartial": "Correct, partial credit",
+    "fixedSecondTry": "Fixed on the second try.",
+    "usedHint": "A hint was used.",
+    "staysInBox": "The card stays in box {{box}}.",
+    "almost_one": "Almost! One letter is off.",
+    "almost_other": "Almost! {{count}} letters are off.",
+    "findTypo": "Find the typo and try again — or show the difference.",
+    "tryAgain": "Try again",
+    "showDiff": "Show the difference",
+    "acceptPartial": "Accept with partial credit",
+    "countWrong": "Count as wrong",
+    "wrong": "Wrong.",
+    "correctAnswer": "Correct answer:",
+    "rightIs": "Correct:",
+    "iWasRight": "I was right"
+  },
+  "ui": {
+    "speak": "Read aloud",
+    "speakText": "Read aloud: {{text}}",
+    "box": "Box {{box}}",
+    "blank": "blank",
+    "more": "More"
+  },
+  "carousel": {
+    "answer": "Answer: {{text}}",
+    "card": "Card: {{text}}. Tap to flip",
+    "aria": "Set cards",
+    "slide": "{{n}} of {{total}}",
+    "previous": "Previous",
+    "next": "Next",
+    "fullscreen": "Study full screen"
+  },
+  "passwordGate": {
+    "wrong": "Wrong password.",
+    "failed": "That didn't work. Check your connection.",
+    "title": "Protected set",
+    "author": "Author: {{name}}.",
+    "body": "This set opens only with a password. Ask the author for it.",
+    "open": "Open"
+  },
+  "errorBoundary": {
+    "title": "Something broke",
+    "body": "Your sets are safe in the cloud. Please reload the app.",
+    "reload": "Reload"
+  },
+  "seo": {
+    "title": "Kartoteka - Smart Leitner flashcards",
+    "description": "Learn words with Leitner flashcards: spaced repetition shows each card right when you start to forget it. Works offline and syncs across devices."
+  },
+  "backup": {
+    "confirm": {
+      "title": "Restore from backup?",
+      "sets": "{{sets}} ({{cards}}) will be added with their progress.",
+      "folders": "Folders: {{count}}.",
+      "keep": "Existing data won't change."
+    },
+    "restored": "Sets restored: {{count}}",
+    "errors": {
+      "notJson": "This file doesn't look like JSON.",
+      "not-backup": "This isn't a Kartoteka backup: there are no sets in the file.",
+      "empty": "The backup has no sets."
+    }
+  },
+  "push": {
+    "iosInstall": "On iPhone, notifications only work in the installed app: Share → “Add to Home Screen”.",
+    "unsupported": "This browser doesn't support notifications.",
+    "noVapid": "VITE_FIREBASE_VAPID_KEY is not set (Firebase → Cloud Messaging → Web Push certificates).",
+    "denied": "Notifications are blocked in your browser settings. Allow them for this site.",
+    "messagingUnsupported": "Firebase Messaging isn't supported in this browser.",
+    "noToken": "Couldn't get a notification token.",
+    "failed": "Couldn't turn on notifications."
+  },
+  "library": {
+    "errors": {
+      "permissionDenied": "The database denied access. Publish the rules from firestore.rules (Firebase Console → Firestore → Rules).",
+      "unavailable": "No connection to the database. Changes are saved on the device and will sync later.",
+      "quota": "The free database's daily quota is used up. Try again tomorrow.",
+      "index": "A Firestore index is needed — open the link from the browser console to create it.",
+      "saveFailed": "Couldn't save changes."
+    },
+    "user": "User",
+    "migrated": "Sets moved from the previous version: {{count}}",
+    "copyTitle": "{{title}} (copy)"
+  },
+  "merge": {
+    "signedInWithSets": "You're signed in. Guest sets ({{count}}) were added to your account.",
+    "signedIn": "You're signed in to your Google account.",
+    "failed": "Couldn't switch accounts."
   }
 }

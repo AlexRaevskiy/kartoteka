@@ -3,7 +3,7 @@
  *
  *  - Precaches the app shell (JS, CSS, fonts, icons) → instant start, works offline.
  *  - SPA routing offline: every navigation falls back to index.html (except Firebase's /__/auth/*).
- *  - Update flow: the page asks before activating a new version ("Доступна новая версия").
+ *  - Update flow: the page asks before activating a new version ("A new version is available").
  *  - Push: shows reminders sent by netlify/functions/send-reminders.mjs through Firebase Cloud
  *    Messaging (data-only messages: { title, body, url, tag }), and opens the app on tap.
  */
@@ -31,7 +31,8 @@ self.addEventListener("push", (event) => {
   const data = payload.data || {};
   const n = payload.notification || {};
   const title = data.title || n.title || "Kartoteka";
-  const body = data.body || n.body || "Пора повторить карточки 🔥";
+  const fallback = (self.navigator?.language || "").startsWith("ru") ? "Пора повторить карточки 🔥" : "Time to review your cards 🔥";
+  const body = data.body || n.body || fallback;
   const url = data.url || payload.fcmOptions?.link || "/";
 
   event.waitUntil(
