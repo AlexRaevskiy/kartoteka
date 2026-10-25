@@ -77,42 +77,94 @@ function stopCurrent() {
   if (player && !player.paused) player.pause();
 }
 
-async function playBase64Mp3(base64) {
+/** Stop whatever is being read (e.g. when a screen closes). */
+export function stopSpeech() {
+  playToken += 1;
+  stopCurrent();
+  if (speechSupported()) window.speechSynthesis.cancel();
+}
+
+/** Plays the clip; with `wait`, resolves only when it has finished (or was stopped). */
+async function playBase64Mp3(base64, wait = false) {
   const audio = getPlayer();
   if (!audio) throw new Error("No audio support");
   audio.src = `data:audio/mpeg;base64,${base64}`;
+  const finished = wait
+    ? new Promise((resolve) => {
+        const done = () => {
+          audio.removeEventListener("ended", done);
+          audio.removeEventListener("pause", done);
+          audio.removeEventListener("error", done);
+          resolve();
+        };
+        audio.addEventListener("ended", done);
+        audio.addEventListener("pause", done);
+        audio.addEventListener("error", done);
+      })
+    : null;
   await audio.play();
+  if (finished) await finished;
+}
+
+const isAutoplayBlock = (err) => err?.name === "NotAllowedError";
+
+/** One text: cloud first, device voice only if the cloud fails. */
+async function speakOne(text, lang, { token, wait }) {
+  lang = !lang || lang === "auto" ? detectLang(text) : lang;
+  let cloudError = null;
+  if (cloudSpeechAvailable(text, lang)) {
+    try {
+      const base64 = await getSpeechAudio(text, lang); // memory → IndexedDB → network
+      if (token !== playToken) return { ok: true, cancelled: true }; // something else was started meanwhile
+      await playBase64Mp3(base64, wait);
+      return { ok: true }; // cloud worked: never fall through to device-voice checks or hints
+    } catch (err) {
+      // iOS refused to start audio without a tap: the device voice would be refused too.
+      if (isAutoplayBlock(err)) return { ok: false, blocked: true };
+      console.warn("[speech] cloud voice failed, falling back to the device voice", err);
+      cloudError = err;
+    }
+  }
+  return speakWithDevice(text, lang, cloudError, wait);
 }
 
 /**
  * Speak `text` in `lang` (BCP-47, e.g. "ka-GE"; omitted or "auto" = guess from the script).
  * Call it directly from a click/tap handler (it unlocks audio before the first await).
- * Resolves to { ok, message? } — message only when something went wrong.
+ * Resolves to { ok, message?, blocked? } — message only when something went wrong.
  */
 export async function speak(text, lang = "auto") {
-  lang = !lang || lang === "auto" ? detectLang(text) : lang;
   if (speechSupported()) window.speechSynthesis.cancel();
   stopCurrent();
+  unlockAudio(); // must stay before any await
+  return speakOne(text, lang, { token: ++playToken, wait: false });
+}
 
-  let cloudError = null;
-  if (cloudSpeechAvailable(text, lang)) {
-    unlockAudio(); // must stay before any await
-    const token = ++playToken;
-    try {
-      const base64 = await getSpeechAudio(text, lang);
-      if (token !== playToken) return { ok: true }; // another word was tapped meanwhile
-      await playBase64Mp3(base64);
-      return { ok: true }; // cloud worked: never fall through to device-voice checks or hints
-    } catch (err) {
-      console.warn("[speech] cloud voice failed, falling back to the device voice", err);
-      cloudError = err;
-    }
+/**
+ * Read several texts one after another, e.g. word → translation → example (Intro mode).
+ * Starting any other speech stops the sequence. Same tap rules as speak().
+ * Resolves to { ok, blocked?, message? } — the first problem met.
+ */
+export async function speakSequence(items) {
+  if (speechSupported()) window.speechSynthesis.cancel();
+  stopCurrent();
+  const list = items.filter((i) => i?.text?.trim());
+  if (!list.length) return { ok: true };
+  unlockAudio(); // must stay before any await
+  const token = ++playToken;
+  let problem = null;
+  for (const item of list) {
+    if (token !== playToken) return { ok: true, cancelled: true };
+    const r = await speakOne(item.text, item.lang, { token, wait: true });
+    if (r.blocked) return r;
+    if (r.cancelled) return r;
+    if (r.message && !problem) problem = r;
   }
-  return speakWithDevice(text, lang, cloudError);
+  return problem || { ok: true };
 }
 
 /** Web Speech API — used only when the cloud voice failed or doesn't cover this language. */
-function speakWithDevice(text, lang, cloudError) {
+function speakWithDevice(text, lang, cloudError, wait = false) {
   const reason = cloudError ? i18n.t("speech.cloudFailed", { reason: cloudError.message || String(cloudError) }) : "";
   if (!speechSupported()) return { ok: false, message: reason || i18n.t("speech.unsupported") };
 
@@ -132,6 +184,13 @@ function speakWithDevice(text, lang, cloudError) {
   utterance.lang = lang;
   utterance.rate = 0.9;
   if (voice) utterance.voice = voice;
-  synth.speak(utterance);
-  return { ok: true, message: reason || undefined };
+  const result = { ok: true, message: reason || undefined };
+  if (!wait) {
+    synth.speak(utterance);
+    return result;
+  }
+  return new Promise((resolve) => {
+    utterance.onend = utterance.onerror = () => resolve(result);
+    synth.speak(utterance);
+  });
 }

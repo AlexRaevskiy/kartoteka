@@ -30,6 +30,7 @@ import {
   Trash2,
   Users,
   Play,
+  BookOpen,
 } from "lucide-react";
 import { useLibrary } from "../data/LibraryProvider.jsx";
 import { useDeckResource } from "../data/useRemote.js";
@@ -46,6 +47,7 @@ import { shareLink } from "../lib/share.js";
 import { cx } from "../lib/utils.js";
 import { MODES } from "./StudyScreen.jsx";
 import SEO from "../components/SEO.jsx";
+import AudioDownloadButton from "../components/AudioDownloadButton.jsx";
 
 export default function DeckScreen() {
   const { id } = useParams();
@@ -245,7 +247,24 @@ function DeckView({ deck }) {
             </div>
             {deck.description ? <p className="text-body-md mt-3 text-on-surface-variant">{deck.description}</p> : null}
 
-            <div className="grid grid-cols-2 gap-3 mt-5">
+            {/* Intro (familiarization) first: meet the words before studying them */}
+            <button
+              type="button"
+              disabled={!deck.cards.length}
+              className="w-full rounded-2xl bg-tertiary-container text-on-tertiary-container p-4 flex items-center gap-3 text-left fc-focus disabled:opacity-40 mt-5"
+              onClick={() => navigate(studyPath("intro"))}
+            >
+              <span className="w-10 h-10 rounded-xl bg-surface-container-lowest/70 flex items-center justify-center shrink-0">
+                <BookOpen size={20} />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block text-title-sm">{t("modes.intro.label")}</span>
+                <span className="block text-body-sm opacity-80">{t("modes.intro.hint")}</span>
+              </span>
+              <ChevronRight size={20} className="shrink-0 opacity-70" />
+            </button>
+
+            <div className="grid grid-cols-2 gap-3 mt-3">
               {MODES.map((m) => (
                 <button
                   key={m.id}
@@ -264,6 +283,7 @@ function DeckView({ deck }) {
                 </button>
               ))}
             </div>
+            <AudioDownloadButton decks={[deck]} className="mt-3" />
           </section>
 
           {/* Block 3: progress */}

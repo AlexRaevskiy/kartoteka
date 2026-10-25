@@ -58,6 +58,7 @@ export const DEFAULT_SETTINGS = {
   notify: { enabled: false, schedule: "evening", timezone: null, localHours: [20], utcHours: [] },
   installHintDismissed: false,
   lastStudy: null, // { kind: "deck" | "folder", id, title, mode, goal, at }
+  introAudio: { term: true, definition: false, example: false }, // Intro mode: what plays on each card
 };
 
 export const EMPTY_PROGRESS = { box: 1, lastReviewed: null, reviews: 0, lapses: 0 };

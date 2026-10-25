@@ -15,6 +15,7 @@ import { useDeckSet, useFolderResource } from "../data/useRemote.js";
 import { useDialogs, useToast } from "../components/providers.jsx";
 import { EmptyPanel, Menu, Sheet, TopBar } from "../components/ui.jsx";
 import SEO from "../components/SEO.jsx";
+import AudioDownloadButton from "../components/AudioDownloadButton.jsx";
 import DeckListItem, { UnavailableDeckItem } from "../components/DeckListItem.jsx";
 import { ShareSheet } from "../components/sheets.jsx";
 import { useNow } from "../hooks/useNow.js";
@@ -122,6 +123,7 @@ function FolderView({ folder }) {
               </p>
             </div>
           </div>
+          {decks.length ? <AudioDownloadButton decks={decks} className="self-start" /> : null}
 
           {/* Search + filters */}
           <div className="relative">

@@ -88,6 +88,20 @@ test("rounds: memorize takes only due cards, cram takes everything, summary list
   assert.equal(buildPool(items, { goal: "cram" }).at(-1).card.id, "mastered"); // weakest first
   assert.equal(buildPool(items, { goal: "cram", exclude: new Set(["d:new"]) }).length, 3);
   assert.equal(takeRound(buildPool(items, { goal: "cram" }), 2).length, 2);
+
+  // Portions: at most `newLimit` new cards, in deck order; cram skips mastered until all are studied.
+  const big = { id: "b", cards: [...Array.from({ length: 40 }, (_, i) => card(1, null, `n${i}`)), card(2, 2, "learning"), card(5, 9, "done")] };
+  const bigItems = toItems(big, big.cards);
+  const memo = buildPool(bigItems, { goal: "memorize", newLimit: 15 });
+  assert.equal(memo.filter((i) => i.card.lastReviewed == null).length, 15);
+  assert.deepEqual(memo.filter((i) => i.card.lastReviewed == null).map((i) => i.card.id).slice(0, 2), ["n0", "n1"]);
+  assert.ok(memo.some((i) => i.card.id === "learning"));
+  const cram = buildPool(bigItems, { goal: "cram", newLimit: 15 }).map((i) => i.card.id);
+  assert.equal(cram.length, 16); // still learning + 15 new
+  assert.ok(!cram.includes("done"));
+  assert.equal(buildPool(bigItems, { goal: "cram", newLimit: 0 }).length, 1); // portion used up
+  const studied = toItems(big, [card(2, 2, "a"), card(5, 9, "b")]);
+  assert.equal(buildPool(studied, { goal: "cram", newLimit: 15 }).length, 2); // no new left → whole deck
   const s = summarizeRound([{ item: items[0], grade: "know" }, { item: items[1], grade: "again" }, { item: items[2], grade: "almost" }]);
   assert.deepEqual([s.total, s.correct, s.almost, s.mistakes.length, s.accuracy], [3, 2, 1, 1, 67]);
 });

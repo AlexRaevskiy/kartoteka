@@ -50,7 +50,7 @@ function ContinueWidget({ lib, now }) {
       target = {
         title: deck.title,
         sub: s.due ? t("home.cardsWaiting", { count: s.due }) : t("home.masteredPct", { pct: s.pct }),
-        mode: MODES.some((m) => m.id === mode) ? t(`modes.${mode}.label`) : undefined,
+        mode: mode === "intro" || MODES.some((m) => m.id === mode) ? t(`modes.${mode}.label`) : undefined,
         path: `/deck/${deck.id}/study?mode=${mode}&goal=${goal}`,
         pct: s.pct,
       };

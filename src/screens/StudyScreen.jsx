@@ -13,7 +13,7 @@
 import React, { useCallback, useEffect, useMemo, useRef } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { ArrowLeftRight, Brain, CalendarCheck, GraduationCap, Layers, ListChecks, Lock, PenLine, SearchX, Sparkles, Timer, X } from "lucide-react";
+import { ArrowLeftRight, BookOpen, Brain, CalendarCheck, GraduationCap, Layers, ListChecks, Lock, PenLine, SearchX, Sparkles, Timer, X } from "lucide-react";
 import { useLibrary } from "../data/LibraryProvider.jsx";
 import { useDeckResource, useDeckSet, useFolderResource } from "../data/useRemote.js";
 import { useToast } from "../components/providers.jsx";
@@ -23,10 +23,11 @@ import FlashcardMode from "../components/study/FlashcardMode.jsx";
 import QuizMode from "../components/study/QuizMode.jsx";
 import WriteMode from "../components/study/WriteMode.jsx";
 import LearnMode from "../components/study/LearnMode.jsx";
+import IntroSession from "../components/study/IntroSession.jsx";
 import RoundSummary from "../components/study/RoundSummary.jsx";
 import { useRounds } from "../hooks/useRounds.js";
 import { useStudyTimer } from "../hooks/useStudyTimer.js";
-import { toItems } from "../lib/rounds.js";
+import { MAX_NEW_PER_SESSION, toItems } from "../lib/rounds.js";
 import { deckStats } from "../lib/leitner.js";
 import { relativeDay } from "../i18n/format.js";
 import { celebrate } from "../lib/celebrate.js";
@@ -45,7 +46,7 @@ export default function StudyScreen({ kind }) {
   const { id } = useParams();
   const [params] = useSearchParams();
   const opts = {
-    mode: MODE_COMPONENTS[params.get("mode")] ? params.get("mode") : "flashcards",
+    mode: MODE_COMPONENTS[params.get("mode")] || params.get("mode") === "intro" ? params.get("mode") : "flashcards",
     goal: params.get("goal") === "cram" ? "cram" : "memorize",
     starred: params.get("starred") === "1",
     tag: params.get("tag"),
@@ -97,7 +98,8 @@ function DeckStudy({ id, opts }) {
     if (res.status === "loading") return <Loading />;
     return <Blocked icon={res.status === "locked" || res.status === "private" ? Lock : SearchX} title={t("study.deckUnavailable")} backPath={`/deck/${id}`} />;
   }
-  return <Session key={`${opts.mode}-${opts.goal}-${opts.starred}`} items={live.items} source={{ kind: "deck", id, title: live.deck.title }} backPath={`/deck/${id}`} opts={opts} />;
+  const View = opts.mode === "intro" ? IntroSession : Session;
+  return <View key={`${opts.mode}-${opts.goal}-${opts.starred}`} items={live.items} source={{ kind: "deck", id, title: live.deck.title }} backPath={`/deck/${id}`} opts={opts} />;
 }
 
 function FolderStudy({ id, opts }) {
@@ -113,8 +115,9 @@ function FolderStudy({ id, opts }) {
     if (fres.status === "loading" || set.loading) return <Loading />;
     return <Blocked icon={Lock} title={t("study.folderUnavailable")} backPath={`/folder/${id}`} />;
   }
+  const View = opts.mode === "intro" ? IntroSession : Session;
   return (
-    <Session
+    <View
       key={`${opts.mode}-${opts.goal}-${opts.tag}`}
       items={live.items}
       source={{ kind: "folder", id, title: live.title }}
@@ -199,6 +202,7 @@ function Session({ items, source, backPath, opts }) {
   );
 
   const menu = [
+    { label: t("modes.intro.label"), icon: BookOpen, onClick: () => setQuery({ mode: "intro" }) },
     ...MODES.map((m) => ({ label: `${m.id === mode ? "✓ " : ""}${t(`modes.${m.id}.label`)}`, icon: m.icon, onClick: () => m.id !== mode && setQuery({ mode: m.id }) })),
     { divider: true },
     { label: reverse ? t("study.termFirst") : t("study.definitionFirst"), icon: ArrowLeftRight, onClick: () => lib.actions.updateSettings({ reverse: !reverse }) },
@@ -276,6 +280,23 @@ function Session({ items, source, backPath, opts }) {
           {rounds.phase === "empty" ? (
             items.length === 0 ? (
               <EmptyPanel icon={SearchX} title={opts.starred ? t("study.noStarred") : t("study.noCards")} actions={<button type="button" className="fc-btn fc-btn-filled" onClick={exit}>{t("common.back")}</button>} />
+            ) : rounds.newRemaining > 0 ? (
+              <EmptyPanel
+                icon={CalendarCheck}
+                tone="good"
+                title={t("study.portionDone")}
+                body={t("study.portionBody", { portion: MAX_NEW_PER_SESSION, left: t("study.newLeft", { count: rounds.newRemaining }) })}
+                actions={
+                  <>
+                    <button type="button" className="fc-btn fc-btn-filled" onClick={rounds.nextPortion}>
+                      {t("study.nextPortion", { count: Math.min(MAX_NEW_PER_SESSION, rounds.newRemaining) })}
+                    </button>
+                    <button type="button" className="fc-btn fc-btn-outlined" onClick={exit}>
+                      {t("study.finish")}
+                    </button>
+                  </>
+                }
+              />
             ) : goal === "memorize" ? (
               <EmptyPanel
                 icon={CalendarCheck}

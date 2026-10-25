@@ -227,6 +227,10 @@
     "write": {
       "label": "Write",
       "hint": "With checking"
+    },
+    "intro": {
+      "label": "Intro",
+      "hint": "Word, translation and example — no testing"
     }
   },
   "deck": {
@@ -525,7 +529,13 @@
     "finish": "Finish",
     "passedAll": "You've gone through all the cards",
     "passedAllBody": "Start over or go back to the regular Leitner schedule.",
-    "again": "Another round"
+    "again": "Another round",
+    "portionDone": "Portion done 🎉",
+    "portionBody": "One session takes up to {{portion}} new words — they stick better that way. {{left}}.",
+    "newLeft_one": "{{count}} new word left",
+    "newLeft_other": "{{count}} new words left",
+    "nextPortion_one": "Next {{count}} word",
+    "nextPortion_other": "Next {{count}} words"
   },
   "deckItem": {
     "due": "{{count}} due",
@@ -730,5 +740,29 @@
     "signedInWithSets": "You're signed in. Guest sets ({{count}}) were added to your account.",
     "signedIn": "You're signed in to your Google account.",
     "failed": "Couldn't switch accounts."
+  },
+  "audioDownload": {
+    "button": "Download audio",
+    "progress": "{{done}}/{{total}}…",
+    "offline": "Audio downloaded — works offline",
+    "done": "Audio downloaded",
+    "partial": "Couldn't download {{count}}. Try again later."
+  },
+  "intro": {
+    "settings": "Audio settings",
+    "settingsHint": "What to read aloud on each card",
+    "audio": {
+      "term": "Word",
+      "definition": "Translation",
+      "example": "Example"
+    },
+    "tapToListen": "Tap to listen",
+    "finish": "Done",
+    "hint": "Swipe or ← → to browse, Space to replay.",
+    "doneShort": "Done",
+    "doneTitle": "Awesome, you've met the words. Ready to study?",
+    "doneBody_one": "{{count}} word is ready for practice.",
+    "doneBody_other": "{{count}} words are ready for practice.",
+    "backToDeck": "Back to deck"
   }
 }
