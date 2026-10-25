@@ -85,10 +85,16 @@ function Workspace({ auth }) {
   const toast = useToast();
   const location = useLocation();
   useThemeSync(lib.settings.theme);
-  useEffect(warmUpVoices, []);
+  useEffect(() => {
+    warmUpVoices();
+  }, []);
 
   // Scroll to top on navigation (study screens manage their own scroll).
-  useEffect(() => window.scrollTo(0, 0), [location.pathname]);
+  // Braces matter: newer browsers return a Promise from scrollTo(), and React would treat a
+  // returned value as the effect's cleanup and crash calling it ("… is not a function").
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [location.pathname]);
 
   // Reminders that arrive while the app is open → snackbar.
   useEffect(() => {
