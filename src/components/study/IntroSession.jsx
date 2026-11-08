@@ -5,13 +5,13 @@
  *     Leitner progress doesn't change.
  *   - Next / Back buttons, ← / → keys or a horizontal swipe. Space replays the card.
  *   - Auto-play on every new card: word (on by default), translation, example — the gear opens
- *     the toggles (saved in the profile: settings.introAudio).
+ *     the toggles (saved in the profile: settings.autoAudio, shared with every study mode).
  *   - The cards: words not met yet — a portion of MAX_NEW_PER_SESSION, or all of them with
  *     ?portion=all (chosen on the deck page). If every word was met already — the whole deck,
  *     as a review that changes nothing.
  *   - Reaching the end marks the portion as met (introducedAt): the words become "still
  *     learning", stay due today, and the next study session takes them first — so the end
- *     screen's Flashcards / Test / Write buttons practice exactly this portion.
+ *     screen's Flashcards / Test / Write / Match / Blitz buttons practice exactly this portion.
  *   - With ?portion=all and words still unseen (e.g. added meanwhile): "Continue intro".
  *
  * iOS starts audio only from a tap, so playback starts synchronously inside the Next / Back /
@@ -20,27 +20,28 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { ArrowLeft, ArrowRight, BookOpen, Layers, ListChecks, PenLine, Play, Settings, Sparkles, X } from "lucide-react";
+import { ArrowLeft, ArrowRight, BookOpen, Sparkles, X } from "lucide-react";
 import { useLibrary } from "../../data/LibraryProvider.jsx";
 import { useToast } from "../providers.jsx";
-import { ExampleBlock, ProgressBar, Sheet, SpeakButton, Switch } from "../ui.jsx";
+import { ExampleBlock, ProgressBar, SpeakButton } from "../ui.jsx";
 import SEO from "../SEO.jsx";
+import { AudioSettingsButton, AudioSettingsSheet, TapToListen } from "./AutoAudio.jsx";
+import { speechPart } from "../../hooks/useAutoSpeak.js";
+import { MODES } from "./modes.js";
 import { MAX_NEW_PER_SESSION, isUnseenCard } from "../../lib/rounds.js";
+import { autoAudioSettings, autoSpeakParts } from "../../lib/autoSpeak.js";
 import { speechLang } from "../../lib/languages.js";
-import { speak, speakSequence, stopSpeech } from "../../lib/speech.js";
-import { cx, isTypingTarget } from "../../lib/utils.js";
+import { primeAudio, speak, speakSequence, stopSpeech } from "../../lib/speech.js";
+import { isTypingTarget } from "../../lib/utils.js";
 
-const DEFAULT_AUDIO = { term: true, definition: false, example: false };
 const SWIPE = 60; // px
+const PRACTICE_MODES = ["flashcards", "quiz", "write", "match", "blitz"];
 
-/** The texts to read for a card, in order, per the user's toggles. */
+/** The texts to read for a card, in order, per the user's toggles (everything is on screen). */
 function sequenceFor(item, audio) {
-  const { card, deck } = item;
-  return [
-    audio.term && { text: card.term, lang: speechLang(deck, "term", card.term) },
-    audio.definition && { text: card.definition, lang: speechLang(deck, "definition", card.definition) },
-    audio.example && card.exampleSentence && { text: card.exampleSentence, lang: speechLang(deck, "term", card.exampleSentence) },
-  ].filter(Boolean);
+  return autoSpeakParts(audio, { stage: "all" })
+    .map((part) => speechPart(item.card, item.deck, part))
+    .filter(Boolean);
 }
 
 export default function IntroSession({ items, source, backPath }) {
@@ -50,7 +51,7 @@ export default function IntroSession({ items, source, backPath }) {
   const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
   const showAll = params.get("portion") === "all";
-  const audio = { ...DEFAULT_AUDIO, ...(lib.settings.introAudio || {}) };
+  const audio = autoAudioSettings(lib.settings);
   const audioRef = useRef(audio);
   audioRef.current = audio;
 
@@ -142,7 +143,8 @@ export default function IntroSession({ items, source, backPath }) {
 
   const exit = () => navigate(backPath, { replace: true });
   // Practice right away: Leitner order puts the words just met first (introducedAt).
-  const toMode = (mode) =>
+  const toMode = (mode) => {
+    primeAudio(); // the first card of the mode auto-plays: unlock audio inside this tap (iOS)
     setParams(
       (p) => {
         const next = new URLSearchParams(p);
@@ -153,11 +155,11 @@ export default function IntroSession({ items, source, backPath }) {
       },
       { replace: true }
     );
+  };
   const onSpeak = (text, lang) =>
     speak(text, lang).then((r) => {
       if (r.message) toast(r.message, { duration: 5000 });
     });
-  const setAudio = (patch) => lib.actions.updateSettings({ introAudio: { ...audio, ...patch } });
 
   const item = cards[index];
   const total = cards.length;
@@ -195,9 +197,7 @@ export default function IntroSession({ items, source, backPath }) {
                 {done ? t("intro.doneShort") : `${t("modes.intro.label")} · ${index + 1}/${total}`}
               </div>
             </div>
-            <button type="button" className="fc-btn fc-icon-btn -mr-3" aria-label={t("intro.settings")} title={t("intro.settings")} onClick={() => setSettingsOpen(true)}>
-              <Settings size={22} />
-            </button>
+            <AudioSettingsButton className="-mr-3" onClick={() => setSettingsOpen(true)} />
           </div>
         </div>
         <div className="fc-gutter pb-2">
@@ -221,14 +221,10 @@ export default function IntroSession({ items, source, backPath }) {
                 <p className="text-body-lg text-on-surface-variant">{t("intro.doneBody", { count: total })}</p>
               )}
               <div className="grid gap-3 w-full mt-2">
-                {[
-                  ["flashcards", Layers],
-                  ["quiz", ListChecks],
-                  ["write", PenLine],
-                ].map(([mode, Icon]) => (
-                  <button key={mode} type="button" className="fc-btn fc-btn-tonal fc-btn-lg w-full justify-start" onClick={() => toMode(mode)}>
-                    <Icon size={20} /> {t(`modes.${mode}.label`)}
-                    <span className="ml-auto text-body-sm opacity-70">{t(`modes.${mode}.hint`)}</span>
+                {MODES.filter((m) => PRACTICE_MODES.includes(m.id) && !(m.minCards > items.length)).map((m) => (
+                  <button key={m.id} type="button" className="fc-btn fc-btn-tonal fc-btn-lg w-full justify-start" onClick={() => toMode(m.id)}>
+                    <m.icon size={20} /> {t(`modes.${m.id}.label`)}
+                    <span className="ml-auto text-body-sm opacity-70 truncate min-w-0">{t(`modes.${m.id}.hint`)}</span>
                   </button>
                 ))}
                 {remaining > 0 ? (
@@ -271,16 +267,12 @@ export default function IntroSession({ items, source, backPath }) {
               </div>
 
               {needsTap ? (
-                <button
-                  type="button"
-                  className="fc-btn fc-btn-tonal self-center fc-in"
+                <TapToListen
                   onClick={() => {
                     setNeedsTap(false);
                     play(index);
                   }}
-                >
-                  <Play size={18} fill="currentColor" /> {t("intro.tapToListen")}
-                </button>
+                />
               ) : null}
 
               <div className="grid grid-cols-2 gap-3">
@@ -297,30 +289,7 @@ export default function IntroSession({ items, source, backPath }) {
         </div>
       </main>
 
-      {settingsOpen ? (
-        <Sheet
-          title={t("intro.settings")}
-          subtitle={t("intro.settingsHint")}
-          onClose={() => setSettingsOpen(false)}
-          labelId="intro-settings-title"
-          footer={
-            <button type="button" className="fc-btn fc-btn-filled" onClick={() => setSettingsOpen(false)}>
-              {t("common.done")}
-            </button>
-          }
-        >
-          {[
-            ["term", t("intro.audio.term")],
-            ["definition", t("intro.audio.definition")],
-            ["example", t("intro.audio.example")],
-          ].map(([key, label]) => (
-            <div key={key} className={cx("flex items-center gap-4")}>
-              <span className="flex-1 text-body-lg">{label}</span>
-              <Switch checked={!!audio[key]} onChange={(on) => setAudio({ [key]: on })} label={label} />
-            </div>
-          ))}
-        </Sheet>
-      ) : null}
+      {settingsOpen ? <AudioSettingsSheet onClose={() => setSettingsOpen(false)} /> : null}
     </div>
   );
 }

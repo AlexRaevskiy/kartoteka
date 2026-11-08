@@ -15,6 +15,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import * as store from "./store.js";
 import { migrateLegacyDecks, profileBackfill } from "./migrate.js";
+import { autoAudioSettings } from "../lib/autoSpeak.js";
 import { DEFAULT_SETTINGS, FOLDER_COLORS, MAX_CARDS_PER_DECK, newCard, normalizeProgress, uid as makeId, withProgress } from "../lib/model.js";
 import { dateKey, nextProgress } from "../lib/leitner.js";
 import { applyActivity, localDateKey } from "../lib/goals.js";
@@ -165,7 +166,13 @@ export function LibraryProvider({ user, onError, children }) {
   /* ---------- derived ---------- */
   const settings = useMemo(() => {
     const s = profile?.settings || {};
-    return { ...DEFAULT_SETTINGS, ...s, notify: { ...DEFAULT_SETTINGS.notify, ...(s.notify || {}) }, dailyGoal: { ...DEFAULT_SETTINGS.dailyGoal, ...(s.dailyGoal || {}) } };
+    return {
+      ...DEFAULT_SETTINGS,
+      ...s,
+      notify: { ...DEFAULT_SETTINGS.notify, ...(s.notify || {}) },
+      dailyGoal: { ...DEFAULT_SETTINGS.dailyGoal, ...(s.dailyGoal || {}) },
+      autoAudio: autoAudioSettings(s),
+    };
   }, [profile]);
 
   const decks = useMemo(() => {

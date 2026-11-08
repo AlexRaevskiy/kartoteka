@@ -15,7 +15,8 @@ import { EmptyPanel, Spinner } from "../components/ui.jsx";
 import { useNow } from "../hooks/useNow.js";
 import { useTranslation } from "react-i18next";
 import { deckStats } from "../lib/leitner.js";
-import { MODES } from "./StudyScreen.jsx";
+import { primeAudio } from "../lib/speech.js";
+import { MODES } from "../components/study/modes.js";
 
 function SyncIcon({ sync }) {
   const { t } = useTranslation();
@@ -70,7 +71,10 @@ function ContinueWidget({ lib, now }) {
         <div className="text-title-md truncate">{target.title}</div>
         <div className="text-body-sm text-on-surface-variant">{target.sub}</div>
       </div>
-      <button type="button" className="fc-btn fc-btn-filled shrink-0 px-4 sm:px-6" onClick={() => navigate(target.path)} aria-label={t("home.continueAria", { title: target.title })}>
+      <button type="button" className="fc-btn fc-btn-filled shrink-0 px-4 sm:px-6" onClick={() => {
+          primeAudio(); // the first card auto-plays: unlock audio inside this tap (iOS)
+          navigate(target.path);
+        }} aria-label={t("home.continueAria", { title: target.title })}>
         <span className="hidden sm:inline">{t("home.continue")}</span>
         <ArrowRight size={20} />
       </button>

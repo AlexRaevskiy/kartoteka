@@ -320,6 +320,13 @@ body {
   .fc-opt.is-correct { background: var(--md-success-container); border-color: var(--md-success); }
   .fc-opt.is-wrong { background: var(--md-error-container); border-color: var(--md-error); }
   .fc-opt:disabled { cursor: default; }
+  .fc-opt.is-selected { background: var(--md-primary-container); border-color: var(--md-primary); color: var(--md-on-primary-container); box-shadow: 0 0 0 2px var(--md-primary); }
+
+  /* Match tiles + Blitz answer flash */
+  .fc-tile { min-height: 5.5rem; display: flex; align-items: center; justify-content: center; text-align: center; padding: .5rem; }
+  .fc-vanish { animation: fc-vanish .38s ease forwards; pointer-events: none; }
+  .fc-flash-good { background: var(--md-success-container); box-shadow: 0 0 0 3px var(--md-success); }
+  .fc-flash-bad { background: var(--md-error-container); box-shadow: 0 0 0 3px var(--md-error); }
   .fc-num { font-family: var(--font-mono); font-size: .75rem; border-radius: 8px; width: 1.75rem; height: 1.75rem; display: inline-flex; align-items: center; justify-content: center; background: var(--md-surface-container-highest); color: var(--md-on-surface-variant); flex-shrink: 0; }
 
   /* Write feedback + letter diff */
@@ -345,11 +352,12 @@ body {
 @keyframes fc-in { from { opacity: .35; transform: translateY(8px); } to { opacity: 1; transform: none; } }
 @keyframes fc-sheet-in { from { transform: translateY(40px); opacity: .5; } to { transform: none; opacity: 1; } }
 @keyframes fc-pop { 0% { transform: scale(.6); opacity: .4; } 100% { transform: scale(1); opacity: 1; } }
+@keyframes fc-vanish { 0% { transform: scale(1); opacity: 1; } 35% { transform: scale(1.06); opacity: 1; } 100% { transform: scale(.8); opacity: 0; } }
 @keyframes fc-shake { 0%, 100% { transform: none; } 25% { transform: translateX(-6px); } 75% { transform: translateX(6px); } }
 @keyframes fc-shimmer { from { background-position: 100% 0; } to { background-position: -100% 0; } }
 @keyframes fc-spin { to { transform: rotate(360deg); } }
 
 @media (prefers-reduced-motion: reduce) {
   .fc-flip, .fc-swipe, .fc-meter > span, .fc-switch::after, .fc-fab-wrap { transition: none; }
-  .fc-in, .fc-pop, .fc-shake, .fc-skeleton, .fc-spin, .fc-sheet-in { animation: none; }
+  .fc-in, .fc-pop, .fc-shake, .fc-vanish, .fc-skeleton, .fc-spin, .fc-sheet-in { animation: none; }
 }

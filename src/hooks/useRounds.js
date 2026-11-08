@@ -1,7 +1,7 @@
 /**
  * Round engine for a study session (see src/lib/rounds.js for the rules).
  *
- *   phase "playing"  → current round, one card at a time
+ *   phase "playing"  → current round, one card at a time (Match: the whole round at once)
  *   phase "summary"  → round summary; continueMistakes() or nextRound()
  *   phase "empty"    → nothing (more) to study for this goal; `newRemaining` > 0 means the
  *                      session's portion of new cards is done — nextPortion() starts another
@@ -59,16 +59,20 @@ export function useRounds({ items, goal, roundSize, onGrade, onRoundEnd }) {
     [goal, roundSize]
   );
 
-  /** grade: "know" | "almost" | "again" */
+  /**
+   * grade: "know" | "almost" | "again".
+   * `key` grades a given card of the round instead of the current one — Match finds pairs in any
+   * order. Each card is graded once per round; `pos` = how many cards are done.
+   */
   const answer = useCallback(
-    (grade) => {
+    (grade, key) => {
       const s = stateRef.current;
       if (s.phase !== "playing") return;
-      const item = s.items[s.pos];
-      if (!item) return;
+      const item = key ? s.items.find((i) => i.key === key) : s.items[s.pos];
+      if (!item || s.results.some((r) => r.item.key === item.key)) return;
       if (s.kind === "normal") onGrade(item, grade);
       const results = [...s.results, { item, grade }];
-      const pos = s.pos + 1;
+      const pos = results.length;
       if (pos < s.items.length) return update({ ...s, pos, results });
       const summary = summarizeRound(results);
       // More to do: another round in this portion, or the next portion of new cards

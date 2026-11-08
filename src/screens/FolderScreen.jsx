@@ -21,6 +21,7 @@ import { ShareSheet } from "../components/sheets.jsx";
 import { useNow } from "../hooks/useNow.js";
 import { FOLDER_COLORS } from "../lib/model.js";
 import { cx } from "../lib/utils.js";
+import { primeAudio } from "../lib/speech.js";
 
 export default function FolderScreen() {
   const { id } = useParams();
@@ -101,8 +102,10 @@ function FolderView({ folder }) {
     },
   ];
 
-  const studyAll = () =>
+  const studyAll = () => {
+    primeAudio(); // the first card auto-plays: unlock audio inside this tap (iOS)
     navigate(`/folder/${folder.id}/study?mode=flashcards&goal=memorize${activeTag ? `&tag=${activeTag.id}` : ""}`);
+  };
 
   return (
     <div className="min-h-screen" style={{ paddingBottom: "calc(120px + env(safe-area-inset-bottom, 0px))" }}>

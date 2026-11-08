@@ -84,6 +84,17 @@ export function stopSpeech() {
   if (speechSupported()) window.speechSynthesis.cancel();
 }
 
+/**
+ * Call synchronously from a tap that leads to AUTO-play without a tap of its own: the button
+ * that opens a study mode, "Next" / a rating that shows the next card. It stops what is playing
+ * and unlocks the shared element inside the gesture, so the next card's audio — started later
+ * from an effect, after network / IndexedDB awaits — is still allowed by iOS (no NotAllowedError).
+ */
+export function primeAudio() {
+  stopSpeech();
+  unlockAudio();
+}
+
 /** Plays the clip; with `wait`, resolves only when it has finished (or was stopped). */
 async function playBase64Mp3(base64, wait = false) {
   const audio = getPlayer();
@@ -119,6 +130,9 @@ async function speakOne(text, lang, { token, wait }) {
       await playBase64Mp3(base64, wait);
       return { ok: true }; // cloud worked: never fall through to device-voice checks or hints
     } catch (err) {
+      // Interrupted by newer speech (auto-play moved on to the next card): not a failure, and
+      // the device voice must not read the old word over the new one.
+      if (token !== playToken || err?.name === "AbortError") return { ok: true, cancelled: true };
       // iOS refused to start audio without a tap: the device voice would be refused too.
       if (isAutoplayBlock(err)) return { ok: false, blocked: true };
       console.warn("[speech] cloud voice failed, falling back to the device voice", err);

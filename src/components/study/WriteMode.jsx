@@ -11,6 +11,9 @@
  *             "Continue" or "I was right" (override).
  *
  * Partial credit = Leitner grade "almost" (card keeps its box; see PARTIAL_CREDIT_POLICY).
+ *
+ * Auto-play: the question when the card appears; the answer side and the example only once the
+ * answer is final (correct, wrong, "I don't know", or the diff is shown) — never before a retry.
  */
 import React, { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -18,6 +21,8 @@ import { Check, Eye, Lightbulb, Quote, RotateCcw, X } from "lucide-react";
 import { BoxBadge, ExampleBlock, SpeakButton } from "../ui.jsx";
 import DiffView from "./DiffView.jsx";
 import RatingHint from "./RatingHint.jsx";
+import { TapToListen } from "./AutoAudio.jsx";
+import { afterSpeech, useAutoSpeak } from "../../hooks/useAutoSpeak.js";
 import { evaluateAnswer, diffIsUseful } from "../../lib/levenshtein.js";
 import { speechLang } from "../../lib/languages.js";
 import { nextBox } from "../../lib/leitner.js";
@@ -41,20 +46,36 @@ export default function WriteMode({ card, deck, reverse, onAnswer, onSpeak, trac
   const [shakeKey, setShakeKey] = useState(0);
 
   const inputRef = useRef(null);
-  const timer = useRef(null);
   const answered = useRef(false);
+  const alive = useRef(true);
+  const answerSpoken = useRef(false);
   const lang = expectedLang;
   const letters = Array.from(expected);
+  const speech = useAutoSpeak({ promptSide: reverse ? "definition" : "term" });
 
   useEffect(() => {
+    alive.current = true;
     inputRef.current?.focus({ preventScroll: true });
-    return () => clearTimeout(timer.current);
-  }, []);
+    speech.speakStage(card, deck, "prompt");
+    return () => {
+      alive.current = false;
+    };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  /** The answer is final: read the answer side / example (once). Call inside the tap / Enter. */
+  const speakAnswer = () => {
+    if (answerSpoken.current) return Promise.resolve();
+    answerSpoken.current = true;
+    return speech.speakStage(card, deck, "answer");
+  };
+  const reveal = () => {
+    setRevealed(true);
+    speakAnswer();
+  };
 
   const finish = (grade) => {
     if (answered.current) return;
     answered.current = true;
-    clearTimeout(timer.current);
     onAnswer(grade);
   };
 
@@ -67,13 +88,16 @@ export default function WriteMode({ card, deck, reverse, onAnswer, onSpeak, trac
     setResult(r);
     if (r.verdict === "correct") {
       setPhase("correct");
-      timer.current = setTimeout(() => finish(correctGrade), correctGrade === "know" ? 900 : 1600);
+      const grade = correctGrade;
+      afterSpeech(speakAnswer(), grade === "know" ? 900 : 1600).then(() => alive.current && finish(grade));
     } else if (r.verdict === "almost") {
       setPhase("almost");
       setRevealed(attempt > 1); // second miss: show the diff straight away
+      if (attempt > 1) speakAnswer();
       setShakeKey((k) => k + 1);
     } else {
       setPhase("wrong");
+      speakAnswer();
       setShakeKey((k) => k + 1);
     }
   };
@@ -95,7 +119,7 @@ export default function WriteMode({ card, deck, reverse, onAnswer, onSpeak, trac
     e.preventDefault();
     if (phase === "input") check();
     else if (phase === "correct") finish(correctGrade);
-    else if (phase === "almost") (revealed ? finish("almost") : attempt === 1 ? retry() : setRevealed(true));
+    else if (phase === "almost") (revealed ? finish("almost") : attempt === 1 ? retry() : reveal());
     else finish("again");
   };
 
@@ -103,6 +127,7 @@ export default function WriteMode({ card, deck, reverse, onAnswer, onSpeak, trac
     setResult(evaluateAnswer("", expected));
     setValue("");
     setPhase("wrong");
+    speakAnswer();
   };
 
   const borderStyle =
@@ -196,6 +221,8 @@ export default function WriteMode({ card, deck, reverse, onAnswer, onSpeak, trac
         ) : null}
       </div>
 
+      {speech.needsTap ? <TapToListen onClick={speech.retry} /> : null}
+
       {/* Feedback */}
       <div aria-live="polite">
         {phase === "input" ? (
@@ -241,7 +268,7 @@ export default function WriteMode({ card, deck, reverse, onAnswer, onSpeak, trac
                   <button type="submit" className="fc-btn fc-btn-primary px-4 py-2.5" autoFocus>
                     <RotateCcw size={16} /> {t("write.tryAgain")} <span className="fc-kbd hidden sm:inline">Enter</span>
                   </button>
-                  <button type="button" className="fc-btn fc-btn-ghost px-4 py-2.5" onClick={() => setRevealed(true)}>
+                  <button type="button" className="fc-btn fc-btn-ghost px-4 py-2.5" onClick={reveal}>
                     <Eye size={16} /> {t("write.showDiff")}
                   </button>
                 </>

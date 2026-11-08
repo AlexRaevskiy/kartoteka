@@ -231,6 +231,14 @@
     "intro": {
       "label": "Intro",
       "hint": "Word, translation and example — no testing"
+    },
+    "match": {
+      "label": "Match",
+      "hint": "Timed pairs"
+    },
+    "blitz": {
+      "label": "Blitz",
+      "hint": "True or false"
     }
   },
   "deck": {
@@ -604,6 +612,24 @@
     "right": "Correct",
     "wrong": "Wrong — the right answer is marked green."
   },
+  "match": {
+    "hint": "Tap a word, then its translation.",
+    "rule": "A pair found with no mistakes moves the word up a box; a wrong pair sends it back to box 1.",
+    "time": "Time",
+    "pairs": "Pairs: {{done}}/{{total}}",
+    "board": "Board {{n}}/{{total}}",
+    "matched": "Match!",
+    "wrong": "Not a pair"
+  },
+  "blitz": {
+    "question": "Is this the right translation?",
+    "true": "True",
+    "false": "False",
+    "right": "Correct!",
+    "wrong": "Wrong",
+    "correctIs": "The right translation:",
+    "wasCorrect": "Wrong: that was the right translation."
+  },
   "summary": {
     "retryTitle": "Review summary",
     "correct": "correct",
@@ -614,7 +640,8 @@
     "mistakes": "Words with mistakes",
     "noMistakesMore": "No mistakes — keep going!",
     "noMistakesDone": "No mistakes — that's all the cards for today.",
-    "skipMistakes": "Skip mistakes — next round"
+    "skipMistakes": "Skip mistakes — next round",
+    "time": "time {{time}}"
   },
   "praise": {
     "perfect": [
@@ -749,14 +776,6 @@
     "partial": "Couldn't download {{count}}. Try again later."
   },
   "intro": {
-    "settings": "Audio settings",
-    "settingsHint": "What to read aloud on each card",
-    "audio": {
-      "term": "Word",
-      "definition": "Translation",
-      "example": "Example"
-    },
-    "tapToListen": "Tap to listen",
     "finish": "Done",
     "hint": "Swipe or ← → to browse, Space to replay.",
     "doneShort": "Done",
@@ -767,6 +786,15 @@
     "addedToLearning_one": "{{count}} word added to your learning list. Let's practice it!",
     "addedToLearning_other": "{{count}} words added to your learning list. Let's practice them!",
     "continueIntro": "Continue intro ({{count}})"
+  },
+  "autoAudio": {
+    "settings": "Audio settings",
+    "settingsHint": "What to read aloud automatically — in every mode",
+    "term": "Word",
+    "definition": "Translation",
+    "example": "Example",
+    "spoilerNote": "Answers are never given away: a flashcard's back is read after the flip; in Test, Write and Blitz — after you answer.",
+    "tapToListen": "Tap to listen"
   },
   "introGate": {
     "locked": "Please practice the started words first: {{count}} are in progress.",

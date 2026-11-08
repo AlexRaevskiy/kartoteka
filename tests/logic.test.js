@@ -13,6 +13,9 @@ import { ttsCacheKey, voiceFor } from "../src/lib/tts.js";
 import { profileBackfill } from "../src/lib/profileBackfill.js";
 import { splitOnTerm } from "../src/lib/utils.js";
 import { deckToText } from "../src/lib/share.js";
+import { DEFAULT_AUTO_AUDIO, autoAudioSettings, autoSpeakParts } from "../src/lib/autoSpeak.js";
+import { blitzGrade, blitzPrompt, formatClock, matchBoards, matchGrade, matchPairKey } from "../src/lib/games.js";
+import { DEFAULT_SETTINGS } from "../src/lib/model.js";
 
 const NOW = Date.now();
 const card = (box, daysAgo, id = Math.random().toString(36).slice(2)) => ({ id, term: id, definition: "d", box, lastReviewed: daysAgo == null ? null : NOW - daysAgo * DAY_MS, reviews: 0, lapses: 0 });
@@ -187,4 +190,80 @@ test("example sentence matching and text export", () => {
   const deck = { cards: [{ term: "a,b", definition: 'say "hi"', exampleSentence: "" }] };
   assert.equal(deckToText(deck, "csv").split("\r\n")[1], '"a,b","say ""hi""",'); // empty example column
   assert.equal(deckToText({ cards: [{ term: "t", definition: "d", exampleSentence: "e" }] }, "txt"), "t\td\te");
+});
+
+test("auto-play: one set of toggles, and the answer is never read before it is given", () => {
+  // Defaults, legacy Intro toggles, and the new shared field winning over them.
+  assert.deepEqual(autoAudioSettings({}), DEFAULT_AUTO_AUDIO);
+  assert.deepEqual(DEFAULT_SETTINGS.autoAudio, DEFAULT_AUTO_AUDIO);
+  assert.deepEqual(autoAudioSettings({ introAudio: { example: true } }), { term: true, definition: false, example: true });
+  assert.deepEqual(autoAudioSettings({ introAudio: { example: true }, autoAudio: { example: false, definition: true } }), { term: true, definition: true, example: false });
+
+  const all = { term: true, definition: true, example: true };
+  // Term first: the term is the question → read at once; translation + example wait for the answer.
+  assert.deepEqual(autoSpeakParts(all, { stage: "prompt", promptSide: "term" }), ["term"]);
+  assert.deepEqual(autoSpeakParts(all, { stage: "answer", promptSide: "term" }), ["definition", "example"]);
+  // Definition first: the term IS the answer → neither the term nor the example before answering.
+  assert.deepEqual(autoSpeakParts(all, { stage: "prompt", promptSide: "definition" }), ["definition"]);
+  assert.deepEqual(autoSpeakParts(all, { stage: "answer", promptSide: "definition" }), ["term", "example"]);
+  // Defaults in "definition first": silent question, the term after the answer.
+  assert.deepEqual(autoSpeakParts(DEFAULT_AUTO_AUDIO, { stage: "prompt", promptSide: "definition" }), []);
+  assert.deepEqual(autoSpeakParts(DEFAULT_AUTO_AUDIO, { stage: "answer", promptSide: "definition" }), ["term"]);
+  // Intro shows everything: every enabled part, in reading order.
+  assert.deepEqual(autoSpeakParts(all, { stage: "all" }), ["term", "definition", "example"]);
+  assert.deepEqual(autoSpeakParts({ term: false, definition: true, example: true }, { stage: "all" }), ["definition", "example"]);
+});
+
+test("match: even boards, interchangeable duplicates, Leitner grade per word", () => {
+  const items = (n) => Array.from({ length: n }, (_, i) => ({ key: `d:${i}` }));
+  assert.deepEqual(matchBoards(items(20)).map((b) => b.length), [5, 5, 5, 5]);
+  assert.deepEqual(matchBoards(items(7)).map((b) => b.length), [4, 3]);
+  assert.deepEqual(matchBoards(items(6)).map((b) => b.length), [6]);
+  assert.deepEqual(matchBoards(items(13)).map((b) => b.length), [5, 4, 4]);
+  assert.deepEqual(matchBoards([]), []);
+  assert.equal(matchBoards(items(20)).flat().length, 20);
+
+  const cards = [
+    { key: "a", term: "bank", definition: "берег" },
+    { key: "b", term: "bank", definition: "банк" },
+    { key: "c", term: "ყავა", definition: "кофе" },
+  ];
+  const tile = (key, text) => ({ key, text });
+  assert.equal(matchPairKey(tile("c", "ყავა"), tile("c", "кофе"), cards), "c");
+  assert.equal(matchPairKey(tile("c", "ყავა"), tile("a", "берег"), cards), null);
+  // Same word on two cards: either "bank" tile pairs with either translation, each card once.
+  const done = new Set();
+  const first = matchPairKey(tile("a", "bank"), tile("b", "банк"), cards, done);
+  assert.equal(first, "b");
+  done.add(first);
+  assert.equal(matchPairKey(tile("b", "bank"), tile("a", "берег"), cards, done), "a");
+
+  const errors = new Set(["a"]);
+  assert.equal(matchGrade("a", errors), "again");
+  assert.equal(matchGrade("c", errors), "know");
+  assert.equal(formatClock(75), "1:15");
+  assert.equal(formatClock(5), "0:05");
+});
+
+test("blitz: half real, half another card's translation, graded true/false", () => {
+  const pool = [
+    { id: "1", term: "ყავა", definition: "кофе" },
+    { id: "2", term: "ჩაი", definition: "чай" },
+    { id: "3", term: "წყალი", definition: "Кофе " }, // reads like card 1's translation
+  ];
+  assert.deepEqual(blitzPrompt(pool[0], pool, () => 0.2), { definition: "кофе", isCorrect: true });
+  const fake = blitzPrompt(pool[0], pool, () => 0.9);
+  assert.equal(fake.isCorrect, false);
+  assert.equal(fake.definition, "чай"); // never a text equal to the real translation
+  // Nothing else to borrow → always the real one.
+  assert.equal(blitzPrompt(pool[0], [pool[0]], () => 0.9).isCorrect, true);
+  // Roughly 50/50 with a real random source.
+  let real = 0;
+  for (let i = 0; i < 2000; i += 1) if (blitzPrompt(pool[1], pool).isCorrect) real += 1;
+  assert.ok(real > 850 && real < 1150, `real ${real}/2000`);
+
+  assert.equal(blitzGrade(true, true), "know");
+  assert.equal(blitzGrade(false, false), "know");
+  assert.equal(blitzGrade(true, false), "again");
+  assert.equal(blitzGrade(false, true), "again");
 });

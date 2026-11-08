@@ -2,14 +2,20 @@
  * Mode: Leitner flashcards.
  * Tap / Space flips. Rate with the buttons, ← / → keys, or by swiping the card
  * (right = know, left = still learning). The example sentence is on the back.
+ *
+ * Auto-play (settings.autoAudio): the front side as soon as the card appears; the back side and
+ * the example only once the card is flipped — so the audio never tells the answer early.
  */
 import React, { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Check, Undo2 } from "lucide-react";
 import { BoxBadge, ExampleBlock, SpeakButton } from "../ui.jsx";
 import RatingHint from "./RatingHint.jsx";
+import { TapToListen } from "./AutoAudio.jsx";
+import { useAutoSpeak } from "../../hooks/useAutoSpeak.js";
 import { cx, isTypingTarget } from "../../lib/utils.js";
 import { speechLang } from "../../lib/languages.js";
+import { primeAudio } from "../../lib/speech.js";
 
 const SWIPE_THRESHOLD = 90; // px
 const TAP_SLOP = 8; // px
@@ -17,9 +23,27 @@ const TAP_SLOP = 8; // px
 export default function FlashcardMode({ card, deck, reverse, onAnswer, keyboardEnabled, onSpeak, tracked, goal }) {
   const { t } = useTranslation();
   const [flipped, setFlipped] = useState(false);
+  const flippedRef = useRef(false);
   const [dx, setDx] = useState(0);
   const [dragging, setDragging] = useState(false);
   const drag = useRef(null);
+  const speech = useAutoSpeak({ promptSide: reverse ? "definition" : "term" });
+  const { speakStage } = speech;
+
+  // A new card (the component is re-mounted per card): read the front.
+  useEffect(() => {
+    speakStage(card, deck, "prompt");
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Runs inside the tap / key handler, so the back's audio starts within the gesture.
+  const flip = () => {
+    const next = !flippedRef.current;
+    flippedRef.current = next;
+    setFlipped(next);
+    if (next) speakStage(card, deck, "answer");
+  };
+  const flipRef = useRef(flip);
+  flipRef.current = flip;
 
   const front = reverse ? card.definition : card.term;
   const back = reverse ? card.term : card.definition;
@@ -33,7 +57,7 @@ export default function FlashcardMode({ card, deck, reverse, onAnswer, keyboardE
       if (isTypingTarget(e.target) || e.metaKey || e.ctrlKey || e.altKey || e.repeat) return;
       if (e.code === "Space" || e.key === " ") {
         e.preventDefault();
-        setFlipped((f) => !f);
+        flipRef.current();
       } else if (e.key === "ArrowRight") {
         e.preventDefault();
         onAnswer("know");
@@ -68,10 +92,12 @@ export default function FlashcardMode({ card, deck, reverse, onAnswer, keyboardE
     setDragging(false);
     if (!d) return;
     if (!d.moved) {
-      if (!cancelled) setFlipped((f) => !f);
+      if (!cancelled) flip();
       return;
     }
     const mx = e.clientX - d.x;
+    // The rating lands after the fly-out animation; unlock audio for the next card now, in the gesture.
+    if (!cancelled && Math.abs(mx) > SWIPE_THRESHOLD) primeAudio();
     if (!cancelled && mx > SWIPE_THRESHOLD) {
       setDx(window.innerWidth);
       setTimeout(() => onAnswer("know"), 160);
@@ -104,7 +130,7 @@ export default function FlashcardMode({ card, deck, reverse, onAnswer, keyboardE
             onKeyDown={(e) => {
               if (e.key === "Enter") {
                 e.preventDefault();
-                setFlipped((f) => !f);
+                flip();
               }
             }}
           >
@@ -137,6 +163,8 @@ export default function FlashcardMode({ card, deck, reverse, onAnswer, keyboardE
           </div>
         </div>
       </div>
+
+      {speech.needsTap ? <TapToListen onClick={speech.retry} /> : null}
 
       <div className="grid grid-cols-2 gap-3 w-full max-w-2xl mx-auto">
         <button type="button" className="fc-btn fc-btn-warn fc-btn-lg" onClick={() => onAnswer("again")}>

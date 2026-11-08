@@ -2,12 +2,18 @@
  * Mode: multiple-choice test. Wrong options are drawn from the other cards of the session
  * (a folder session mixes several decks). Keys 1–4 answer, Enter continues.
  * The example sentence appears after answering.
+ *
+ * Auto-play never gives the answer away: the question is read when the card appears; the answer
+ * side and the example only after a choice ("definition first" → the term waits for the answer).
+ * A correct answer moves on once that reading is over.
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Check, X } from "lucide-react";
 import { BoxBadge, ExampleBlock, SpeakButton } from "../ui.jsx";
 import RatingHint from "./RatingHint.jsx";
+import { TapToListen } from "./AutoAudio.jsx";
+import { afterSpeech, useAutoSpeak } from "../../hooks/useAutoSpeak.js";
 import { cx, isTypingTarget, shuffle } from "../../lib/utils.js";
 import { tidy } from "../../lib/levenshtein.js";
 import { speechLang } from "../../lib/languages.js";
@@ -38,28 +44,36 @@ export default function QuizMode({ card, deck, pool, reverse, onAnswer, keyboard
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const options = useMemo(() => buildOptions(card, pool || deck.cards, reverse), [card.id, reverse]);
   const [picked, setPicked] = useState(null);
-  const timer = useRef(null);
   const answered = useRef(false);
-  useEffect(() => () => clearTimeout(timer.current), []);
+  const alive = useRef(true);
+  const speech = useAutoSpeak({ promptSide: reverse ? "definition" : "term" });
+  useEffect(() => {
+    alive.current = true;
+    speech.speakStage(card, deck, "prompt");
+    return () => {
+      alive.current = false;
+    };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const finish = useCallback(
     (correct) => {
       if (answered.current) return;
       answered.current = true;
-      clearTimeout(timer.current);
       onAnswer(correct ? "know" : "again");
     },
     [onAnswer]
   );
 
+  const { speakStage } = speech;
   const choose = useCallback(
     (i) => {
       if (picked !== null || !options[i]) return;
       setPicked(i);
-      // Auto-advance on a correct answer; give time to read the example if there is one.
-      if (options[i].correct) timer.current = setTimeout(() => finish(true), card.exampleSentence ? 1600 : 800);
+      const spoken = speakStage(card, deck, "answer"); // inside the tap / key press
+      // Auto-advance on a correct answer: time to read the example, and to hear the answer.
+      if (options[i].correct) afterSpeech(spoken, card.exampleSentence ? 1600 : 800).then(() => alive.current && finish(true));
     },
-    [picked, options, finish, card.exampleSentence]
+    [picked, options, finish, card, deck, speakStage]
   );
 
   useEffect(() => {
@@ -115,6 +129,8 @@ export default function QuizMode({ card, deck, pool, reverse, onAnswer, keyboard
           );
         })}
       </div>
+
+      {speech.needsTap ? <TapToListen onClick={speech.retry} /> : null}
 
       <div className="flex flex-col gap-3" style={{ minHeight: "3rem" }} aria-live="polite">
         {picked === null ? (

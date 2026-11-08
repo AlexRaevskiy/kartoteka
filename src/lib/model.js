@@ -23,7 +23,7 @@
  *     tags: [{ id, name, deckIds: [] }]          sub-labels inside the folder ("Экзамен 1")
  *     visibility: "private" | "public", createdAt, updatedAt
  *
- *   users/{uid}                    profile: settings, streak, daily progress, push tokens
+ *   users/{uid}                    profile: settings (incl. autoAudio), streak, daily progress, push tokens
  *   users/{uid}/library/{deckId}   PER-USER study state for any deck (own or shared):
  *     ownerId, title, addedAt, lastStudiedAt,
  *     starred: [cardId],
@@ -40,6 +40,7 @@
  * shared by link and can contain decks owned by other people, which you can't write to.
  * Old decks therefore need no new field at all: they simply aren't in any folder yet.
  */
+import { DEFAULT_AUTO_AUDIO } from "./autoSpeak.js";
 
 export const SCHEMA_VERSION = 3;
 export const MAX_CARDS_PER_DECK = 2000;
@@ -58,7 +59,7 @@ export const DEFAULT_SETTINGS = {
   notify: { enabled: false, schedule: "evening", timezone: null, localHours: [20], utcHours: [] },
   installHintDismissed: false,
   lastStudy: null, // { kind: "deck" | "folder", id, title, mode, goal, at }
-  introAudio: { term: true, definition: false, example: false }, // Intro mode: what plays on each card
+  autoAudio: { ...DEFAULT_AUTO_AUDIO }, // auto-play in every study mode (legacy: introAudio) — see lib/autoSpeak.js
 };
 
 export const EMPTY_PROGRESS = { box: 1, lastReviewed: null, reviews: 0, lapses: 0, introducedAt: null };

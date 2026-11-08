@@ -44,11 +44,11 @@ import CardCarousel from "../components/CardCarousel.jsx";
 import PasswordGate from "../components/PasswordGate.jsx";
 import { DownloadSheet, FolderPickerSheet, GoalSheet, SetInfoSheet, ShareSheet } from "../components/sheets.jsx";
 import { progressBreakdown } from "../lib/leitner.js";
-import { speak } from "../lib/speech.js";
+import { primeAudio, speak } from "../lib/speech.js";
 import { speechLang } from "../lib/languages.js";
 import { shareLink } from "../lib/share.js";
 import { cx } from "../lib/utils.js";
-import { MODES } from "./StudyScreen.jsx";
+import { MODES } from "../components/study/modes.js";
 import SEO from "../components/SEO.jsx";
 import AudioDownloadButton from "../components/AudioDownloadButton.jsx";
 
@@ -131,7 +131,7 @@ function DeckView({ deck }) {
   const openIntro = () => {
     if (introLocked) return toast(t("introGate.locked", { count: load }), { duration: 5000 });
     if (unseen > MAX_NEW_PER_SESSION) return setSheet("introPortion");
-    navigate(studyPath("intro"));
+    startStudy(studyPath("intro"));
   };
   const terms = useMemo(() => {
     const list = [...deck.cards];
@@ -141,6 +141,11 @@ function DeckView({ deck }) {
 
   const inFolders = lib.folders.some((f) => f.deckIds.includes(deck.id));
   const studyPath = (mode, goal = "memorize") => `/deck/${deck.id}/study?mode=${mode}&goal=${goal}${starredOnly ? "&starred=1" : ""}`;
+  // The first card auto-plays from an effect: unlock audio inside this tap first (iOS).
+  const startStudy = (path) => {
+    primeAudio();
+    navigate(path);
+  };
   const onSpeak = (text, lang) =>
     speak(text, lang).then((r) => {
       if (r.message) toast(r.message, { duration: 5000 });
@@ -237,7 +242,7 @@ function DeckView({ deck }) {
         <div className="mx-auto max-w-3xl flex flex-col gap-6">
           {/* Block 1: carousel */}
           {deck.cards.length ? (
-            <CardCarousel deck={deck} reverse={lib.settings.reverse} onSpeak={onSpeak} onFullscreen={() => navigate(studyPath("flashcards"))} />
+            <CardCarousel deck={deck} reverse={lib.settings.reverse} onSpeak={onSpeak} onFullscreen={() => startStudy(studyPath("flashcards"))} />
           ) : (
             <EmptyPanel title={t("deck.emptyTitle")} body={canEdit ? t("deck.emptyBody") : undefined} actions={canEdit ? <button type="button" className="fc-btn fc-btn-filled" onClick={() => navigate(`/deck/${deck.id}/edit`)}>{t("common.edit")}</button> : null} />
           )}
@@ -288,9 +293,9 @@ function DeckView({ deck }) {
                 <button
                   key={m.id}
                   type="button"
-                  disabled={!deck.cards.length || (m.id === "quiz" && deck.cards.length < 2)}
+                  disabled={!deck.cards.length || (m.minCards || 0) > deck.cards.length}
                   className="rounded-2xl bg-surface-container-low p-4 flex items-center gap-3 text-left fc-focus disabled:opacity-40"
-                  onClick={() => navigate(studyPath(m.id))}
+                  onClick={() => startStudy(studyPath(m.id))}
                 >
                   <span className="w-10 h-10 rounded-xl bg-secondary-container text-on-secondary-container flex items-center justify-center shrink-0">
                     <m.icon size={20} />
@@ -393,7 +398,7 @@ function DeckView({ deck }) {
       {/* Smart FAB */}
       {deck.cards.length ? (
         <div className={cx("fc-fab-wrap fixed left-0 right-0 z-20 flex justify-center pointer-events-none", !fabVisible && "is-hidden")} style={{ bottom: "calc(20px + env(safe-area-inset-bottom, 0px))" }} aria-hidden={!fabVisible}>
-          <button type="button" tabIndex={fabVisible ? 0 : -1} className="fc-fab fc-fab-primary pointer-events-auto px-6" onClick={() => navigate(studyPath("flashcards"))}>
+          <button type="button" tabIndex={fabVisible ? 0 : -1} className="fc-fab fc-fab-primary pointer-events-auto px-6" onClick={() => startStudy(studyPath("flashcards"))}>
             <Play size={20} fill="currentColor" /> {starredOnly ? t("deck.studyStarred", { count: starredCount }) : t("deck.studyThisSet")}
           </button>
         </div>
@@ -415,7 +420,7 @@ function DeckView({ deck }) {
               className="text-left rounded-2xl p-4 flex gap-4 border-2 border-outline-variant hover:border-primary fc-focus"
               onClick={() => {
                 setSheet(null);
-                navigate(studyPath("intro") + (value === "all" ? "&portion=all" : ""));
+                startStudy(studyPath("intro") + (value === "all" ? "&portion=all" : ""));
               }}
             >
               <span className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0 bg-surface-container-highest text-on-surface-variant">
@@ -436,7 +441,7 @@ function DeckView({ deck }) {
           onClose={() => setSheet(null)}
           onStart={(goal) => {
             setSheet(null);
-            navigate(studyPath("learn", goal));
+            startStudy(studyPath("learn", goal));
           }}
         />
       ) : null}

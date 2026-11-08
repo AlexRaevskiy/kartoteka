@@ -2,16 +2,17 @@
  * Round summary — the clear end point of every round.
  * Praise · stats (right / to repeat) · list of mistakes (term — definition) ·
  * "Finish" (back to the set/folder) and "Continue" (a round of only the missed cards; if there
- * were none — the next batch of cards).
+ * were none — the next batch of cards). Match also shows the round's time (`seconds`).
  */
 import React, { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { ArrowRight, Check, RotateCcw, Trophy, Undo2 } from "lucide-react";
 import { praiseLevel } from "../../lib/rounds.js";
+import { formatClock } from "../../lib/games.js";
 import { speechLang } from "../../lib/languages.js";
 import { ProgressBar, SpeakButton } from "../ui.jsx";
 
-export default function RoundSummary({ summary, kind, hasMore, onFinish, onContinueMistakes, onNextRound, onSpeak }) {
+export default function RoundSummary({ summary, kind, hasMore, seconds, onFinish, onContinueMistakes, onNextRound, onSpeak }) {
   // Handlers are called without the click event and only if they were passed.
   const call = (fn) => () => (typeof fn === "function" ? fn() : undefined);
   const { t, i18n } = useTranslation();
@@ -64,6 +65,7 @@ export default function RoundSummary({ summary, kind, hasMore, onFinish, onConti
         <div className="text-body-sm text-on-surface-variant mt-1.5 text-center fc-tabular">
           {t("summary.firstTry", { pct: summary.accuracy })}
           {summary.almost ? ` · ${t("summary.partial", { count: summary.almost })}` : ""}
+          {seconds ? ` · ${t("summary.time", { time: formatClock(seconds) })}` : ""}
         </div>
       </div>
 

@@ -6,14 +6,19 @@
  * praise, stats, the list of mistakes, and two buttons — "Finish" and "Continue"
  * (a new round with only the missed cards; if there were none — the next batch).
  *
- * Query: ?mode=flashcards|learn|quiz|write  &goal=memorize|cram  &starred=1  &tag=<folderTagId>
+ * Query: ?mode=flashcards|learn|quiz|write|match|blitz|intro  &goal=memorize|cram  &starred=1  &tag=<folderTagId>
  *   memorize → Leitner: only cards due today
  *   cram     → every card, ignoring the long intervals ("Cram for a test")
+ *
+ * The gear opens the auto-play toggles (word / translation / example), shared by all modes.
+ * Every tap that leads to a new card calls primeAudio() first: the card's auto-play starts later,
+ * from an effect, and iOS only allows that on an element unlocked inside a gesture.
+ * Match is a round-level mode: it gets the whole round and grades cards by key, in any order.
  */
-import React, { useCallback, useEffect, useMemo, useRef } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { ArrowLeftRight, BookOpen, Brain, CalendarCheck, GraduationCap, Layers, ListChecks, Lock, PenLine, SearchX, Sparkles, Timer, X } from "lucide-react";
+import { ArrowLeftRight, BookOpen, Brain, CalendarCheck, Lock, SearchX, Sparkles, Timer, X } from "lucide-react";
 import { useLibrary } from "../data/LibraryProvider.jsx";
 import { useDeckResource, useDeckSet, useFolderResource } from "../data/useRemote.js";
 import { useToast } from "../components/providers.jsx";
@@ -24,23 +29,21 @@ import QuizMode from "../components/study/QuizMode.jsx";
 import WriteMode from "../components/study/WriteMode.jsx";
 import LearnMode from "../components/study/LearnMode.jsx";
 import IntroSession from "../components/study/IntroSession.jsx";
+import MatchMode from "../components/study/MatchMode.jsx";
+import BlitzMode from "../components/study/BlitzMode.jsx";
 import RoundSummary from "../components/study/RoundSummary.jsx";
+import { MODES } from "../components/study/modes.js";
+import { AudioSettingsButton, AudioSettingsSheet } from "../components/study/AutoAudio.jsx";
 import { useRounds } from "../hooks/useRounds.js";
 import { useStudyTimer } from "../hooks/useStudyTimer.js";
 import { MAX_NEW_PER_SESSION, toItems } from "../lib/rounds.js";
 import { deckStats } from "../lib/leitner.js";
 import { relativeDay } from "../i18n/format.js";
 import { celebrate } from "../lib/celebrate.js";
-import { speak } from "../lib/speech.js";
+import { primeAudio, speak } from "../lib/speech.js";
 
-// Labels: modes.<id>.label / modes.<id>.hint in the locale files.
-export const MODES = [
-  { id: "flashcards", icon: Layers },
-  { id: "learn", icon: GraduationCap },
-  { id: "quiz", icon: ListChecks },
-  { id: "write", icon: PenLine },
-];
-const MODE_COMPONENTS = { flashcards: FlashcardMode, learn: LearnMode, quiz: QuizMode, write: WriteMode };
+const MODE_COMPONENTS = { flashcards: FlashcardMode, learn: LearnMode, quiz: QuizMode, write: WriteMode, match: MatchMode, blitz: BlitzMode };
+const ROUND_MODES = new Set(["match"]); // get the whole round at once
 
 export default function StudyScreen({ kind }) {
   const { id } = useParams();
@@ -135,6 +138,8 @@ function Session({ items, source, backPath, opts }) {
   const [, setParams] = useSearchParams();
   const { mode, goal } = opts;
   const reverse = !!lib.settings.reverse;
+  const [audioOpen, setAudioOpen] = useState(false);
+  const [roundSeconds, setRoundSeconds] = useState(null); // Match: time of the last round
 
   useEffect(() => {
     lib.actions.setLastStudy({ kind: source.kind, id: source.id, title: source.title, mode, goal });
@@ -184,14 +189,28 @@ function Session({ items, source, backPath, opts }) {
   const rounds = useRounds({ items, goal, roundSize: lib.settings.roundSize || 20, onGrade, onRoundEnd });
   const pool = useMemo(() => items.map((i) => i.card), [items]);
 
+  // Taps that bring a new card: unlock audio first, so its auto-play works on iOS.
+  const withAudio = (fn) => (...args) => {
+    primeAudio();
+    return fn(...args);
+  };
+  const { answer } = rounds;
+  const onAnswer = useCallback((grade) => {
+    primeAudio();
+    answer(grade);
+  }, [answer]);
+  const onAnswerItem = useCallback((key, grade) => answer(grade, key), [answer]);
+
   // Always leave to a known screen: going "back" in history could land outside the app or on a stale entry.
   const exit = useCallback(() => navigate(backPath, { replace: true }), [navigate, backPath]);
-  const setQuery = (patch) =>
+  const setQuery = (patch) => {
+    primeAudio();
     setParams((p) => {
       const next = new URLSearchParams(p);
       Object.entries(patch).forEach(([k, v]) => next.set(k, v));
       return next;
     }, { replace: true });
+  };
 
   const onSpeak = useCallback(
     (text, lang) =>
@@ -203,7 +222,12 @@ function Session({ items, source, backPath, opts }) {
 
   const menu = [
     { label: t("modes.intro.label"), icon: BookOpen, onClick: () => setQuery({ mode: "intro" }) },
-    ...MODES.map((m) => ({ label: `${m.id === mode ? "✓ " : ""}${t(`modes.${m.id}.label`)}`, icon: m.icon, onClick: () => m.id !== mode && setQuery({ mode: m.id }) })),
+    ...MODES.map((m) => ({
+      label: `${m.id === mode ? "✓ " : ""}${t(`modes.${m.id}.label`)}`,
+      icon: m.icon,
+      hidden: m.minCards > pool.length,
+      onClick: () => m.id !== mode && setQuery({ mode: m.id }),
+    })),
     { divider: true },
     { label: reverse ? t("study.termFirst") : t("study.definitionFirst"), icon: ArrowLeftRight, onClick: () => lib.actions.updateSettings({ reverse: !reverse }) },
     goal === "memorize"
@@ -213,7 +237,10 @@ function Session({ items, source, backPath, opts }) {
 
   const total = rounds.items?.length || 0;
   const done = rounds.phase === "playing" ? rounds.pos : total;
-  const ModeComponent = MODE_COMPONENTS[mode === "quiz" && pool.length < 2 ? "flashcards" : mode];
+  // Too few cards for wrong options / fake translations / pairs → plain flashcards.
+  const activeMode = (MODES.find((m) => m.id === mode)?.minCards || 0) > pool.length ? "flashcards" : mode;
+  const ModeComponent = MODE_COMPONENTS[activeMode];
+  const roundMode = ROUND_MODES.has(activeMode);
   const stats = useMemo(() => deckStats({ cards: pool }, Date.now()), [pool]);
 
   return (
@@ -235,10 +262,11 @@ function Session({ items, source, backPath, opts }) {
                   ? goal === "cram"
                     ? t("study.cram")
                     : t("study.leitner")
-                  : `${rounds.kind === "retry" ? t("study.retryRound") : t("study.round", { n: rounds.roundNo })} · ${Math.min(done + 1, total)}/${total}`}
+                  : `${rounds.kind === "retry" ? t("study.retryRound") : t("study.round", { n: rounds.roundNo })} · ${roundMode ? done : Math.min(done + 1, total)}/${total}`}
               </div>
             </div>
-            <div className="-mr-3">
+            <div className="-mr-3 flex items-center">
+              <AudioSettingsButton onClick={() => setAudioOpen(true)} />
               <Menu items={menu} label={t("study.menu")} />
             </div>
           </div>
@@ -250,7 +278,17 @@ function Session({ items, source, backPath, opts }) {
 
       <main className="fc-gutter flex-1 pt-4 pb-8" style={{ overflowX: "clip", paddingBottom: "calc(32px + env(safe-area-inset-bottom, 0px))" }}>
         <div className="mx-auto max-w-2xl">
-          {rounds.phase === "playing" && rounds.current ? (
+          {rounds.phase === "playing" && roundMode ? (
+            <ModeComponent
+              key={`${activeMode}-${rounds.roundNo}`}
+              items={rounds.items}
+              goal={goal}
+              tracked={rounds.kind === "normal"}
+              onAnswerItem={onAnswerItem}
+              onFinish={setRoundSeconds}
+              onSpeak={onSpeak}
+            />
+          ) : rounds.phase === "playing" && rounds.current ? (
             <ModeComponent
               key={`${rounds.roundNo}-${rounds.pos}-${rounds.current.key}`}
               card={rounds.current.card}
@@ -259,8 +297,8 @@ function Session({ items, source, backPath, opts }) {
               reverse={reverse}
               goal={goal}
               tracked={rounds.kind === "normal"}
-              keyboardEnabled
-              onAnswer={rounds.answer}
+              keyboardEnabled={!audioOpen}
+              onAnswer={onAnswer}
               onSpeak={onSpeak}
             />
           ) : null}
@@ -270,9 +308,10 @@ function Session({ items, source, backPath, opts }) {
               summary={rounds.summary}
               kind={rounds.kind}
               hasMore={rounds.hasMore}
+              seconds={roundMode ? roundSeconds : null}
               onFinish={exit}
-              onContinueMistakes={rounds.continueMistakes}
-              onNextRound={rounds.nextRound}
+              onContinueMistakes={withAudio(rounds.continueMistakes)}
+              onNextRound={withAudio(rounds.nextRound)}
               onSpeak={onSpeak}
             />
           ) : null}
@@ -288,7 +327,7 @@ function Session({ items, source, backPath, opts }) {
                 body={t("study.portionBody", { portion: MAX_NEW_PER_SESSION, left: t("study.newLeft", { count: rounds.newRemaining }) })}
                 actions={
                   <>
-                    <button type="button" className="fc-btn fc-btn-filled" onClick={rounds.nextPortion}>
+                    <button type="button" className="fc-btn fc-btn-filled" onClick={withAudio(rounds.nextPortion)}>
                       {t("study.nextPortion", { count: Math.min(MAX_NEW_PER_SESSION, rounds.newRemaining) })}
                     </button>
                     <button type="button" className="fc-btn fc-btn-outlined" onClick={exit}>
@@ -326,7 +365,7 @@ function Session({ items, source, backPath, opts }) {
                 body={t("study.passedAllBody")}
                 actions={
                   <>
-                    <button type="button" className="fc-btn fc-btn-filled" onClick={rounds.restart}>
+                    <button type="button" className="fc-btn fc-btn-filled" onClick={withAudio(rounds.restart)}>
                       {t("study.again")}
                     </button>
                     <button type="button" className="fc-btn fc-btn-outlined" onClick={exit}>
@@ -339,6 +378,7 @@ function Session({ items, source, backPath, opts }) {
           ) : null}
         </div>
       </main>
+      {audioOpen ? <AudioSettingsSheet onClose={() => setAudioOpen(false)} /> : null}
     </div>
   );
 }
